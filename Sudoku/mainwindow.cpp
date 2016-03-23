@@ -78,11 +78,13 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(onAlgorithmSelected(int)));
 
     m_private->buttonPreset = new QPushButton(tr("&Preset"), this);
+    m_private->buttonPreset->setToolTip(tr("Load a .sdk file with preset values into the board.\n\nYou can also drag a .sdk file to the main window."));
     m_private->buttonPreset->setAutoDefault(false);
     connect(m_private->buttonPreset, SIGNAL(clicked(bool)),
             this, SLOT(loadPreset()));
 
     m_private->buttonInitialize = new QPushButton(tr("&Initialize"), this);
+    m_private->buttonInitialize->setToolTip(tr("Reset all values to empty in the board."));
     m_private->buttonInitialize->setAutoDefault(false);
     connect(m_private->buttonInitialize, SIGNAL(clicked(bool)),
             this, SLOT(initialize()));
@@ -90,6 +92,9 @@ MainWindow::MainWindow(QWidget *parent) :
     int w = qMax(m_private->buttonInitialize->sizeHint().width(), m_private->buttonPreset->sizeHint().width());
     m_private->buttonInitialize->setFixedWidth(w);
     m_private->buttonPreset->setFixedWidth(w);
+
+    m_private->boxBoard->setMaximumWidth(w * 1.5);
+    m_private->boxAlgorithm->setMaximumWidth(w * 1.5);
 
     m_private->buttonAbout = new QPushButton(tr("&About"), this);
     m_private->buttonAbout->setAutoDefault(false);
