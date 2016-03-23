@@ -22,7 +22,7 @@ protected:
     MainWindowPrivate();
     ~MainWindowPrivate();
 
-    int loadBoards();
+    int loadBoards(); //Return the number of loaded boards, or -1 if any error happens
 
     QList<SudokuBoard *> boards;
 

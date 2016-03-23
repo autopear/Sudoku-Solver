@@ -1,6 +1,8 @@
 #ifndef SUDOKUBOARD_H
 #define SUDOKUBOARD_H
 
+//Model for Sudoku board
+
 #include <QMap>
 #include <QObject>
 #include <QPoint>
@@ -34,6 +36,7 @@ public:
 
     QList<QPolygon> blocks() const; //All inner blocks
 
+    //Return the block that the cell belongs to, or empty block if the cell does not belong to any block
     QPolygon findBlock(const QPoint &pos);
     inline QPolygon findBlock(int x, int y) { return findBlock(QPoint(x, y)); }
 

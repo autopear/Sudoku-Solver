@@ -27,27 +27,29 @@ using namespace CIS5603;
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
-    //    SudokuBoard *b = new SudokuBoard(this);
-    //    b->setName("Number Place Challenger");
-    //    b->setSize(16, 16);
-    //    b->setRange(1, 16);
-    //    QList<QPolygon> blks;
-    //    for (int i=0; i<4; i++)
-    //    {
-    //        for (int j=0; j<4; j++)
-    //        {
-    //            QPolygon p;
-    //            for (int m=0;m<4;m++)
-    //            {
-    //                for (int n=0; n<4; n++)
-    //                    p.append(QPoint(i*4+m, j*4+n));
-    //            }
-    //            blks.append(p);
-    //        }
-    //    }
-    //    b->setBlocks(blks);
-    //    b->saveToFile(".board");
-
+    //This part can generate a board file quickly.
+    /*
+    SudokuBoard *b = new SudokuBoard(this);
+    b->setName("SET A NAME HERE");
+    b->setSize(16, 16);
+    b->setRange(1, 16);
+    QList<QPolygon> blks;
+    for (int i=0; i<4; i++)
+    {
+        for (int j=0; j<4; j++)
+        {
+            QPolygon p;
+            for (int m=0;m<4;m++)
+            {
+                for (int n=0; n<4; n++)
+                    p.append(QPoint(i*4+m, j*4+n));
+            }
+            blks.append(p);
+        }
+    }
+    b->setBlocks(blks);
+    b->saveToFile("SOME_PATH.board");
+    */
 
     m_private = new MainWindowPrivate();
     m_private->parent = this;
@@ -291,17 +293,17 @@ void MainWindow::showAbout()
 
 void MainWindow::nextStep()
 {
-
+    //To do...
 }
 
 void MainWindow::goToEnd()
 {
-
+    //To do...
 }
 
 void MainWindow::stop()
 {
-
+    //To do...
 }
 
 void MainWindow::loadPreset()
