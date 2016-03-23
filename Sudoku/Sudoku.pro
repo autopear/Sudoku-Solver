@@ -37,6 +37,8 @@ mac {
 }
 
 win32 {
+  RC_FILE = Resources/win.rc
+
   PWD_WIN = $${PWD}
   DESTDIR_WIN = $${OUT_PWD}
   PWD_WIN ~= s,/,\\,g
@@ -58,5 +60,3 @@ DISTFILES += \
     Resources/Boards/Small.board \
     Resources/Boards/Standard.board \
     Resources/Presets/Simple_9x9.sdk
-
-RC_FILE = Resources/win.rc
