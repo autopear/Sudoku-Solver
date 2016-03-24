@@ -1,6 +1,5 @@
 #include <QApplication>
 #include <QComboBox>
-#include <QDebug>
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
@@ -27,6 +26,32 @@ using namespace CIS5603;
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
+    //This part of code can generate a board quickly.
+    /*
+    SudokuBoard *bb = new SudokuBoard(this);
+    bb->setName("Giant Sudoku");
+    bb->setSize(25, 25);
+    bb->setRange(1, 25);
+    QList<QPolygon> blks;
+    QList<QColor> colors;
+    for (int i=0; i<5; i++)
+    {
+        for (int j=0;j<5;j++)
+        {
+            QPolygon polygon;
+            for (int m=0; m<5; m++)
+            {
+                for (int n=0; n<5; n++)
+                    polygon.append(QPoint(m + 5 * i, n + 5 * j));
+            }
+            blks.append(polygon);
+            colors.append((i + j) % 2 == 0 ? QColor("#E5E4E2") : QColor("#FFFFFF"));
+        }
+    }
+    bb->setBlocks(blks);
+    bb->setColors(colors);
+    bb->saveToFile("Giant.board");*/
+
     m_private = new MainWindowPrivate();
     m_private->parent = this;
 
@@ -285,7 +310,7 @@ void MainWindow::onValueChanged(int row, int column, int oldValue, int newValue)
         m_private->boardWidget->setHighlight(p1, p2);
         return;
     }
-    if (!validateBlock(m_private->currentBoard->findBlock(column, row), &p1, &p2))
+    if (!validateBlock(m_private->currentBoard->findBlock(row, column), &p1, &p2))
     {
         m_private->boardWidget->setHighlight(p1, p2);
         return;
@@ -438,7 +463,7 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
             for (int j=0; j<rowValues.size(); j++)
             {
                 int v = rowValues.at(j);
-                if (v > 0)
+                if (v > -1)
                     m_private->boardWidget->setValue(i, j, v);
             }
         }
@@ -474,8 +499,8 @@ bool MainWindow::validateRow(int row, QPoint *p1, QPoint *p2)
             {
                 if (p1)
                 {
-                    p1->setX(i);
-                    p1->setY(row);
+                    p1->setX(row);
+                    p1->setY(i);
                 }
                 if (p2)
                     *p2 = QPoint(-1, -1);
@@ -485,13 +510,13 @@ bool MainWindow::validateRow(int row, QPoint *p1, QPoint *p2)
             {
                 if (p1)
                 {
-                    p1->setX(i);
-                    p1->setY(row);
+                    p1->setX(row);
+                    p1->setY(i);
                 }
                 if (p2)
                 {
-                    p2->setX(checked.value(v));
-                    p2->setY(row);
+                    p2->setX(row);
+                    p2->setY(checked.value(v));
                 }
                 return false;
             }
@@ -525,8 +550,8 @@ bool MainWindow::validateColumn(int column, QPoint *p1, QPoint *p2)
             {
                 if (p1)
                 {
-                    p1->setX(column);
-                    p1->setY(i);
+                    p1->setX(i);
+                    p1->setY(column);
                 }
                 if (p2)
                     *p2 = QPoint(-1, -1);
@@ -536,13 +561,13 @@ bool MainWindow::validateColumn(int column, QPoint *p1, QPoint *p2)
             {
                 if (p1)
                 {
-                    p1->setX(column);
-                    p1->setY(i);
+                    p1->setX(i);
+                    p1->setY(column);
                 }
                 if (p2)
                 {
-                    p2->setX(column);
-                    p2->setY(checked.value(v));
+                    p2->setX(checked.value(v));
+                    p2->setY(column);
                 }
                 return false;
             }
@@ -585,7 +610,7 @@ bool MainWindow::validateBlock(const QPolygon &block, QPoint *p1, QPoint *p2)
         QMap<int, QPoint> checked;
         foreach (QPoint p, uniques)
         {
-            int v = m_private->boardWidget->value(p.y(), p.x());
+            int v = m_private->boardWidget->value(p.x(), p.y());
             if (v == 0)
                 continue;
             else if (v < m_private->currentBoard->minimum() || v > m_private->currentBoard->maximum())
@@ -605,10 +630,7 @@ bool MainWindow::validateBlock(const QPolygon &block, QPoint *p1, QPoint *p2)
                 return false;
             }
             else
-            {
                 checked.insert(v, p);
-            }
-
         }
         if (p1)
             *p1 = QPoint(-1, -1);
@@ -792,8 +814,8 @@ int MainWindowPrivate::loadBoards()
         {
             if (sort.keys().contains(board->name()))
             {
-                delete board;
                 qDebug(QObject::tr("Board \"%1\" from %2 already exists.").arg(board->name()).arg(QDir::toNativeSeparators(fileInfo.absoluteFilePath())).toUtf8());
+                delete board;
             }
             else
             {
@@ -803,8 +825,8 @@ int MainWindowPrivate::loadBoards()
         }
         else
         {
-            delete board;
             qDebug(QObject::tr("Board \"%1\" from %2 is invalid.").arg(board->name()).arg(QDir::toNativeSeparators(fileInfo.absoluteFilePath())).toUtf8());
+            delete board;
         }
     }
 

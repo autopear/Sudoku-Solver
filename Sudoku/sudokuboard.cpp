@@ -1,3 +1,4 @@
+#include <QDir>
 #include <QFile>
 #include "sudokuboard_p.h"
 #include "sudokuboard.h"
@@ -16,7 +17,9 @@ SudokuBoard::SudokuBoard(const QString &file, QObject *parent) :
 {
     QString error;
     if (m_private->loadFromFile(file, &error) == -1)
-        qDebug(error.toUtf8());
+        qDebug(tr("Failed to load %1.\n\nThe following error had occurred: %2")
+               .arg(QDir::toNativeSeparators(file))
+               .arg(error).toUtf8());
 }
 
 SudokuBoard::SudokuBoard(SudokuBoard *other, QObject *parent) :
@@ -49,13 +52,22 @@ SudokuBoard::~SudokuBoard()
 bool SudokuBoard::isValid() const
 {
     if (m_private->name.isEmpty())
+    {
+        qDebug("Name is undefined.");
         return false;
+    }
 
     if (m_private->rows < 4 || m_private->columns < 4)
+    {
+        qDebug(QString("ROWS or COLUMNS is too small of \"%1\"").arg(m_private->name).toUtf8());
         return false;
+    }
 
     if (m_private->min < 1 || m_private->max <= m_private->min)
+    {
+        qDebug(QString("Invalid MINIMUM or MAXIMUM of \"%1\"").arg(m_private->name).toUtf8());
         return false;
+    }
 
     //Check blocks;
     QList<QPoint> tmp;
@@ -67,7 +79,11 @@ bool SudokuBoard::isValid() const
         foreach (QPoint p, block)
         {
             if (tmp.contains(p))
+            {
+                qDebug(QString("Cell (%1, %2) already defined in a block of \"%3\".")
+                       .arg(p.x()).arg(p.y()).arg(m_private->name).toUtf8());
                 return false;
+            }
             else
                 tmp.append(p);
         }
@@ -75,7 +91,10 @@ bool SudokuBoard::isValid() const
 
     //Check blocks and colors
     if (!m_private->colors.isEmpty() && m_private->colors.size() != m_private->blocks.size())
+    {
+        qDebug(QString("BLOCKS and COLORS mismatch of \"%1\"").arg(m_private->name).toUtf8());
         return false;
+    }
 
     return true;
 }
@@ -220,10 +239,10 @@ void SudokuBoard::setRows(int rows)
 
 void SudokuBoard::setColumns(int columns)
 {
-    if (columns != m_private->rows)
+    if (columns != m_private->columns)
     {
         int old = m_private->columns;
-        m_private->rows = columns;
+        m_private->columns = columns;
         emit columnsChanged(old);
         emit configurationChanged();
     }

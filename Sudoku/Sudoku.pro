@@ -59,8 +59,11 @@ win32 {
 
 DISTFILES += \
     Resources/Boards/Dodeka.board \
+    Resources/Boards/Giant.board \
+    Resources/Boards/Jigsaw.board \
     Resources/Boards/Mini.board \
     Resources/Boards/"Number Place Challenger.board" \
     Resources/Boards/Small.board \
     Resources/Boards/Standard.board \
+    Resources/Presets/Jigsaw_9x9.sdk \
     Resources/Presets/Simple_9x9.sdk

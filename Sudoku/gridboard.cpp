@@ -41,6 +41,8 @@ GridBoard::GridBoard(QWidget *parent) :
 
     horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+    setStyleSheet("* { gridline-color: black; }");
 }
 
 GridBoard::~GridBoard()
@@ -80,7 +82,7 @@ int GridBoard::value(const QPoint &pos) const
 
 void GridBoard::setValue(int row, int column, int value)
 {
-    m_private->model->setData(m_private->model->index(row, column), value);
+    m_private->model->setValue(row, column, value);
 }
 
 int GridBoard::rows() const
@@ -123,7 +125,7 @@ void GridBoard::setAspectRatio(const QSize &size)
 
 void GridBoard::setHighlight(const QPoint &p1, const QPoint &p2)
 {
-    setHighlight(p1.y(), p1.x(), p2.y(), p2.x());
+    setHighlight(p1.x(), p1.y(), p2.x(), p2.y());
 }
 
 void GridBoard::setHighlight(int row1, int column1, int row2, int column2)
@@ -158,6 +160,7 @@ void GridBoard::setBackgroundColor(int row, int column, const QColor &color)
 
 void GridBoard::clearContents()
 {
+    m_private->model->removeHighlights();
     for (int i=0; i<m_private->model->rowCount(); i++)
     {
         for (int j=0; j<m_private->model->columnCount(); j++)
@@ -167,6 +170,7 @@ void GridBoard::clearContents()
 
 void GridBoard::clear()
 {
+    m_private->model->removeHighlights();
     m_private->model->setSize(0, 0);
 }
 
@@ -231,7 +235,7 @@ void GridBoardPrivate::adjustFont()
 
         if (qMax(mt.width(maxStr), mt.height()) > s - 8)
         {
-            if (i == 0)
+            if (i < 2)
                 return;
 
             font.setPixelSize(i - 1);

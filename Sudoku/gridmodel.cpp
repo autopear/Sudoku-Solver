@@ -41,8 +41,11 @@ void GridModel::setValue(int row, int column, int value)
 {
     if (row < m_private->rows && row > -1 && column < m_private->columns && column > -1 && m_private->values)
     {
-        if (value > -1)
+        if (value > -1 && value != m_private->values[row][column])
+        {
             m_private->values[row][column] = value;
+            emit dataChanged(index(row, column), index(row, column), QVector<int>() << Qt::DisplayRole);
+        }
     }
 }
 

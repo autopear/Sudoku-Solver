@@ -16,7 +16,7 @@ To specify a board, add a text file with .board extension into Resources/Boards 
 Every board has 6 keys:<ul>
 <li><b>NAME</b>: This key must be unique, which is the name of the variant.</li>
 <li><b>ROWS</b> and <b>COLUMNS</b>: Specify the grid size of the board. These two values can be different.</li>
-<li><b>MINIMUM</b> and <b>MAXIMUM</b>: Define the range of allowed value numbers. Normally it should correspond to the grid size. A valid value must be at least 0. -1 is used as undefined value.</li>
+<li><b>MINIMUM</b> and <b>MAXIMUM</b>: Define the range of allowed value numbers. Normally it should correspond to the grid size. A valid value must be at least 1. 0 is used as undefined value.</li>
 <li><b>BLOCKS</b>: Specify all the blocks in the grid. You can put multiple blocks in one line. Every block is surrounded by [ and ], two blocks are separated by a comma. One cell can appear at most once in all blocks. A cell is in the format of (X, Y) and two cells are separated by comma. The end of the block list must be semicolon.</li>
 <li><b>COLORS</b>: Specify the colors of each block. The color can be either normal string or HTML color code.<ol>
   <li>Color as string: <a href="http://doc.qt.io/qt-5/qcolor.html#predefined-colors" target="_blank">http://doc.qt.io/qt-5/qcolor.html#predefined-colors</a></li>
@@ -27,5 +27,5 @@ Every board has 6 keys:<ul>
 User can also have preset (initial values) defined for a specified board. The file must have extension .sdk.
 <img src="https://github.com/autopear/Sudoku-Solver/blob/master/Documents/Images/03.png">
 
-The sdk file is basically a 2-D arrays of integers, with values corresponding to the grid. Undefined (empty) values can be set to empty string or -1. Rows of values must be in individual lines, and values in the same row are separated by comma. The above preset is for grid 9x9. An example output is below:
+The sdk file is basically a 2-D arrays of integers, with values corresponding to the grid. Undefined (empty) values can be set to empty string or 0. Rows of values must be in individual lines, and values in the same row are separated by comma. The above preset is for grid 9x9. An example output is below:
 <img src="https://github.com/autopear/Sudoku-Solver/blob/master/Bin/Preview_9x9_Presets.png">
