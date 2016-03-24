@@ -12,7 +12,7 @@ class QWidget;
 namespace CIS5603
 {
 
-class BoardWidget;
+class GridBoard;
 class SudokuBoard;
 
 class MainWindowPrivate
@@ -27,7 +27,6 @@ protected:
     QList<SudokuBoard *> boards;
 
     SudokuBoard *currentBoard;
-    QList<QList<int> > values;
 
     MainWindow *parent;
 
@@ -45,7 +44,9 @@ protected:
 
     QPushButton *buttonAbout;
 
-    BoardWidget *boardWidget;
+    QWidget *blankTopLeft;
+    QWidget *blankBottomRight;
+    GridBoard *boardWidget;
     bool shown;
     int boardLeft, boardTop, boardBottom, boardRight;
 

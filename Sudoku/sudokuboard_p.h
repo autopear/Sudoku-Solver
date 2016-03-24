@@ -1,10 +1,11 @@
 #ifndef SUDOKUBOARD_P_H
 #define SUDOKUBOARD_P_H
 
+#include <QColor>
+#include <QList>
 #include <QMap>
 #include <QPoint>
 #include <QPolygon>
-#include <QSize>
 #include <QString>
 #include "sudokuboard.h"
 
@@ -77,11 +78,13 @@ protected:
     static void sortBlocks(QList<QPolygon> *blocks);
 
     QString name;
-    QSize size;
+    int rows;
+    int columns;
     int min;
     int max;    
     QList<QPolygon> blocks;
     QMap<QPoint, QPolygon> blockMap;
+    QList<QColor> colors;
 };
 
 }

@@ -17,7 +17,7 @@
 #include <QResizeEvent>
 #include <QUrl>
 #include "aboutdialog.h"
-#include "boardwidget.h"
+#include "gridboard.h"
 #include "sudokuboard.h"
 #include "mainwindow_p.h"
 #include "mainwindow.h"
@@ -27,30 +27,6 @@ using namespace CIS5603;
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
-    //This part can generate a board file quickly.
-    /*
-    SudokuBoard *b = new SudokuBoard(this);
-    b->setName("SET A NAME HERE");
-    b->setSize(16, 16);
-    b->setRange(1, 16);
-    QList<QPolygon> blks;
-    for (int i=0; i<4; i++)
-    {
-        for (int j=0; j<4; j++)
-        {
-            QPolygon p;
-            for (int m=0;m<4;m++)
-            {
-                for (int n=0; n<4; n++)
-                    p.append(QPoint(i*4+m, j*4+n));
-            }
-            blks.append(p);
-        }
-    }
-    b->setBlocks(blks);
-    b->saveToFile("SOME_PATH.board");
-    */
-
     m_private = new MainWindowPrivate();
     m_private->parent = this;
 
@@ -67,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_private->boxBoard = new QComboBox(this);
     m_private->boxBoard->addItem(tr("Select..."));
     foreach (SudokuBoard *board, m_private->boards)
-        m_private->boxBoard->addItem(QObject::tr("%1 (%2x%3)").arg(board->name()).arg(QString::number(board->width(), 10)).arg(QString::number(board->height(), 10)));
+        m_private->boxBoard->addItem(QObject::tr("%1 (%2x%3)").arg(board->name()).arg(QString::number(board->rows(), 10)).arg(QString::number(board->columns(), 10)));
     m_private->boxBoard->setCurrentIndex(0);
     connect(m_private->boxBoard, SIGNAL(currentIndexChanged(int)),
             this, SLOT(onBoardSelected(int)));
@@ -103,7 +79,13 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_private->buttonAbout, SIGNAL(clicked(bool)),
             this, SLOT(showAbout()));
 
-    m_private->boardWidget = new BoardWidget(this);
+    m_private->blankTopLeft = new QWidget(this);
+
+    m_private->blankBottomRight = new QWidget(this);
+
+    m_private->boardWidget = new GridBoard(this);
+    connect(m_private->boardWidget, SIGNAL(valueChanged(int,int,int,int)),
+            this, SLOT(onValueChanged(int,int,int,int)));
 
     m_private->labelTitleTotalTime = new QLabel(tr("Total Time:"), this);
 
@@ -162,9 +144,16 @@ MainWindow::MainWindow(QWidget *parent) :
     buttons->addWidget(m_private->buttonEnd);
     buttons->addStretch();
 
+    QGridLayout *boardLayout = new QGridLayout();
+    boardLayout->setContentsMargins(0, 0, 0, 0);
+    boardLayout->setSpacing(0);
+    boardLayout->addWidget(m_private->blankTopLeft, 0, 0);
+    boardLayout->addWidget(m_private->boardWidget, 1, 1);
+    boardLayout->addWidget(m_private->blankBottomRight, 2, 2);
+
     QVBoxLayout *leftLayout = new QVBoxLayout();
     leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->addWidget(m_private->boardWidget, 1);
+    leftLayout->addLayout(boardLayout);
     leftLayout->addLayout(labels);
     leftLayout->addSpacing(10);
     leftLayout->addLayout(buttons);
@@ -195,45 +184,6 @@ SudokuBoard *MainWindow::currentBoard()
     return m_private->currentBoard;
 }
 
-QList<QList<int> > MainWindow::values() const
-{
-    return m_private->values;
-}
-
-QList<int> MainWindow::rowValues(int row) const
-{
-    if (m_private->currentBoard && row > -1 && row < m_private->currentBoard->width())
-        return m_private->values.at(row);
-    else
-        return QList<int>();
-}
-
-QList<int> MainWindow::columnValues(int column) const
-{
-    if (m_private->currentBoard && column > -1 && column < m_private->currentBoard->height())
-    {
-        QList<int> ret;
-        for (int i=0; i<m_private->currentBoard->height(); i++)
-        {
-            QList<int> row = m_private->values.at(i);
-            ret.append(row.at(column));
-        }
-        return ret;
-    }
-    else
-        return QList<int>();
-}
-
-int MainWindow::value(int row, int column) const
-{
-    if (m_private->currentBoard &&
-            row > -1 && row < m_private->currentBoard->height() &&
-            column > -1 && column < m_private->currentBoard->width())
-        return m_private->values.at(row).at(column);
-    else
-        return -1;
-}
-
 void MainWindow::onBoardSelected(int index)
 {
     if (index < 0)
@@ -249,15 +199,28 @@ void MainWindow::onBoardSelected(int index)
 
     if (board)
     {
-        m_private->boardWidget->setRowCount(board->height());
-        m_private->boardWidget->setColumnCount(board->width());
-        for (int i=0; i<board->height(); i++)
+        m_private->boardWidget->setSize(board->rows(), board->columns());
+        if (board->colors().isEmpty())
         {
-            for (int j=0; j<board->width(); j++)
+            for (int i=0; i<board->rows(); i++)
             {
-                QTableWidgetItem *item = new QTableWidgetItem(QTableWidgetItem::UserType);
-                item->setTextAlignment(Qt::AlignCenter);
-                m_private->boardWidget->setItem(i, j, item);
+                for (int j=0; j<board->columns(); j++)
+                    m_private->boardWidget->setBackgroundColor(i, j, QColor(Qt::white));
+            }
+        }
+        else
+        {
+            for (int i=0; i<board->rows(); i++)
+            {
+                for (int j=0; j<board->columns(); j++)
+                {
+                    QPolygon block = board->findBlock(i, j);
+                    if (!block.isEmpty())
+                    {
+                        int idx = board->blocks().indexOf(block);
+                        m_private->boardWidget->setBackgroundColor(i, j, board->colors().at(idx));
+                    }
+                }
             }
         }
 
@@ -265,6 +228,8 @@ void MainWindow::onBoardSelected(int index)
         m_private->buttonPreset->setEnabled(true);
         m_private->buttonNext->setEnabled(true);
         m_private->buttonEnd->setEnabled(true);
+
+        adjustBoard();
     }
     else
     {
@@ -273,8 +238,6 @@ void MainWindow::onBoardSelected(int index)
         m_private->buttonNext->setEnabled(false);
         m_private->buttonEnd->setEnabled(false);
         m_private->boardWidget->clear();
-        m_private->boardWidget->setRowCount(0);
-        m_private->boardWidget->setColumnCount(0);
     }
     initialize();
 }
@@ -306,6 +269,30 @@ void MainWindow::stop()
     //To do...
 }
 
+void MainWindow::onValueChanged(int row, int column, int oldValue, int newValue)
+{
+    Q_UNUSED(oldValue);
+    Q_UNUSED(newValue);
+
+    QPoint p1 = QPoint(-1, -1), p2 = QPoint(1, -1);
+    if (!validateRow(row, &p1, &p2))
+    {
+        m_private->boardWidget->setHighlight(p1, p2);
+        return;
+    }
+    if (!validateColumn(column, &p1, &p2))
+    {
+        m_private->boardWidget->setHighlight(p1, p2);
+        return;
+    }
+    if (!validateBlock(m_private->currentBoard->findBlock(column, row), &p1, &p2))
+    {
+        m_private->boardWidget->setHighlight(p1, p2);
+        return;
+    }
+    m_private->boardWidget->setHighlight(p1, p2);
+}
+
 void MainWindow::loadPreset()
 {
 #ifdef Q_OS_MAC
@@ -333,19 +320,7 @@ void MainWindow::loadPreset()
 void MainWindow::initialize()
 {
     if (m_private->currentBoard)
-    {
-        QList<int> row;
-        for (int i=0; i<m_private->currentBoard->width(); i++)
-            row.append(-1);
-
-        m_private->values.clear();
-        for (int i=0; i<m_private->currentBoard->height(); i++)
-            m_private->values.append(row);
-
-        m_private->boardWidget->emptyAllCells();
-    }
-    else
-        m_private->values.clear();
+        m_private->boardWidget->clearContents();
 
     m_private->labelStepTime->setText("0 ms");
     m_private->labelTotalTime->setText("0 ms");
@@ -388,7 +363,7 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
             continue;
 
         QStringList list = line.split(",", QString::KeepEmptyParts);
-        if (list.size() != m_private->currentBoard->width())
+        if (list.size() != m_private->currentBoard->columns())
         {
             if (showError)
                 QMessageBox::warning(this,
@@ -405,12 +380,12 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
         {
             QString vStr = list.at(i);
             if (vStr.isEmpty())
-                rowValues.append(-1);
+                rowValues.append(0);
             else
             {
                 bool ok;
                 int v = vStr.toInt(&ok, 10);
-                if (!ok)
+                if (!ok || v < 0)
                 {
                     if (showError)
                         QMessageBox::warning(this,
@@ -423,17 +398,14 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
                     return false;
                 }
 
-                if (v < 0)
-                    rowValues.append(-1);
-                else
-                    rowValues.append(v);
+                rowValues.append(v);
             }
         }
 
         presets.append(rowValues);
     }
 
-    if (presets.size() > m_private->currentBoard->height())
+    if (presets.size() > m_private->currentBoard->rows())
     {
         if (showError)
             QMessageBox::warning(this,
@@ -443,7 +415,7 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
         delete sdk;
         return false;
     }
-    else if (presets.size() < m_private->currentBoard->height())
+    else if (presets.size() < m_private->currentBoard->rows())
     {
         if (showError)
             QMessageBox::warning(this,
@@ -458,19 +430,16 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
         sdk->close();
         delete sdk;
 
-        m_private->boardWidget->emptyAllCells();
+        m_private->boardWidget->clearContents();
+
         for (int i=0; i<presets.size(); i++)
         {
             QList<int> rowValues = presets.at(i);
             for (int j=0; j<rowValues.size(); j++)
             {
                 int v = rowValues.at(j);
-                if (v > -1)
-                {
-                    QTableWidgetItem *item = m_private->boardWidget->item(j, i);
-                    item->setText(QString::number(v, 10));
-                }
-                m_private->values[i][j] = v;
+                if (v > 0)
+                    m_private->boardWidget->setValue(i, j, v);
             }
         }
 
@@ -478,20 +447,13 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
     }
 }
 
-bool MainWindow::setValue(int value, int row, int column)
+bool MainWindow::setValue(int row, int column, int value)
 {
     if (m_private->currentBoard &&
-            row > -1 && row < m_private->currentBoard->height() &&
-            column > -1 && column < m_private->currentBoard->width())
+            row > -1 && row < m_private->currentBoard->rows() &&
+            column > -1 && column < m_private->currentBoard->columns())
     {
-        m_private->values[row][column] = value;
-        if (value < 0)
-            m_private->boardWidget->item(row, column)->setText(QString());
-        else
-        {
-            m_private->boardWidget->item(row, column)->setText(QString::number(value, 10));
-            m_private->boardWidget->scaleToFit(row, column);
-        }
+        m_private->boardWidget->setValue(row, column, value);
         return true;
     }
 
@@ -500,14 +462,13 @@ bool MainWindow::setValue(int value, int row, int column)
 
 bool MainWindow::validateRow(int row, QPoint *p1, QPoint *p2)
 {
-    if (m_private->currentBoard && row > -1 && row < m_private->currentBoard->height())
+    if (m_private->currentBoard && row > -1 && row < m_private->currentBoard->rows())
     {
-        QList<int> rowValues = m_private->values.at(row);
         QMap<int, int> checked;
-        for (int i=0; i<rowValues.size(); i++)
+        for (int i=0; i<m_private->currentBoard->columns(); i++)
         {
-            int v = rowValues.at(i);
-            if (v == -1)
+            int v = m_private->boardWidget->value(row, i);
+            if (v == 0)
                 continue;
             else if (v < m_private->currentBoard->minimum() || v > m_private->currentBoard->maximum())
             {
@@ -517,7 +478,7 @@ bool MainWindow::validateRow(int row, QPoint *p1, QPoint *p2)
                     p1->setY(row);
                 }
                 if (p2)
-                    *p2 = QPoint();
+                    *p2 = QPoint(-1, -1);
                 return false;
             }
             else if (checked.keys().contains(v))
@@ -538,27 +499,27 @@ bool MainWindow::validateRow(int row, QPoint *p1, QPoint *p2)
                 checked.insert(v, i);
         }
         if (p1)
-            *p1 = QPoint();
+            *p1 = QPoint(-1, -1);
         if (p2)
-            *p2 = QPoint();
+            *p2 = QPoint(-1, -1);
         return true;
     }
     if (p1)
-        *p1 = QPoint();
+        *p1 = QPoint(-1, -1);
     if (p2)
-        *p2 = QPoint();
+        *p2 = QPoint(-1, -1);
     return false;
 }
 
 bool MainWindow::validateColumn(int column, QPoint *p1, QPoint *p2)
 {
-    if (m_private->currentBoard && column > -1 && column < m_private->currentBoard->width())
+    if (m_private->currentBoard && column > -1 && column < m_private->currentBoard->columns())
     {
         QMap<int, int> checked;
-        for (int i=0; i<m_private->currentBoard->width(); i++)
+        for (int i=0; i<m_private->currentBoard->rows(); i++)
         {
-            int v = m_private->values[i][column];
-            if (v == -1)
+            int v = m_private->boardWidget->value(i, column);
+            if (v == 0)
                 continue;
             else if (v < m_private->currentBoard->minimum() || v > m_private->currentBoard->maximum())
             {
@@ -568,7 +529,7 @@ bool MainWindow::validateColumn(int column, QPoint *p1, QPoint *p2)
                     p1->setY(i);
                 }
                 if (p2)
-                    *p2 = QPoint();
+                    *p2 = QPoint(-1, -1);
                 return false;
             }
             else if (checked.keys().contains(v))
@@ -589,15 +550,15 @@ bool MainWindow::validateColumn(int column, QPoint *p1, QPoint *p2)
                 checked.insert(v, i);
         }
         if (p1)
-            *p1 = QPoint();
+            *p1 = QPoint(-1, -1);
         if (p2)
-            *p2 = QPoint();
+            *p2 = QPoint(-1, -1);
         return true;
     }
     if (p1)
-        *p1 = QPoint();
+        *p1 = QPoint(-1, -1);
     if (p2)
-        *p2 = QPoint();
+        *p2 = QPoint(-1, -1);
     return false;
 }
 
@@ -608,13 +569,13 @@ bool MainWindow::validateBlock(const QPolygon &block, QPoint *p1, QPoint *p2)
         QPolygon uniques;
         foreach (QPoint p, block)
         {
-            if (p.x() < 0 || p.x() >= m_private->currentBoard->width() ||
-                    p.x() < 0 || p.x() >= m_private->currentBoard->width())
+            if (p.x() < 0 || p.x() >= m_private->currentBoard->rows() ||
+                    p.x() < 0 || p.x() >= m_private->currentBoard->columns())
             {
                 if (p1)
-                    *p1 = QPoint();
+                    *p1 = QPoint(-1, -1);
                 if (p2)
-                    *p2 = QPoint();
+                    *p2 = QPoint(-1, -1);
                 return false;
             }
             else
@@ -624,15 +585,15 @@ bool MainWindow::validateBlock(const QPolygon &block, QPoint *p1, QPoint *p2)
         QMap<int, QPoint> checked;
         foreach (QPoint p, uniques)
         {
-            int v = m_private->values[p.y()][p.x()];
-            if (v == -1)
+            int v = m_private->boardWidget->value(p.y(), p.x());
+            if (v == 0)
                 continue;
             else if (v < m_private->currentBoard->minimum() || v > m_private->currentBoard->maximum())
             {
                 if (p1)
                     *p1 = p;
                 if (p2)
-                    *p2 = QPoint();
+                    *p2 = QPoint(-1, -1);
                 return false;
             }
             else if (checked.keys().contains(v))
@@ -650,16 +611,36 @@ bool MainWindow::validateBlock(const QPolygon &block, QPoint *p1, QPoint *p2)
 
         }
         if (p1)
-            *p1 = QPoint();
+            *p1 = QPoint(-1, -1);
         if (p2)
-            *p2 = QPoint();
+            *p2 = QPoint(-1, -1);
         return true;
     }
     if (p1)
-        *p1 = QPoint();
+        *p1 = QPoint(-1, -1);
     if (p2)
-        *p2 = QPoint();
+        *p2 = QPoint(-1, -1);
     return false;
+}
+
+void MainWindow::adjustBoard()
+{
+    if (!m_private->shown)
+        return;
+
+    int mw = m_private->mainWidget->width() - m_private->boardLeft - m_private->boardRight;
+    int mh = m_private->mainWidget->height() - m_private->boardTop - m_private->boardBottom;
+
+    int cw = mw;
+    int ch = m_private->boardWidget->heightForWidth(mw);
+    if (ch > mh)
+    {
+        cw = mw * mh / ch;
+        ch = mh;
+    }
+
+    m_private->blankTopLeft->setFixedSize((mw - cw) / 2, (mh - ch) / 2);
+    m_private->blankBottomRight->setFixedSize((mw - cw) / 2, (mh - ch) / 2);
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
@@ -720,27 +701,14 @@ void MainWindow::showEvent(QShowEvent *event)
         m_private->boardRight = out.right() - in.right();
         m_private->boardBottom = out.bottom() - in.bottom();
 
-        int mw = m_private->mainWidget->width() - m_private->boardLeft - m_private->boardRight;
-        int mh = m_private->mainWidget->height() - m_private->boardTop - m_private->boardBottom;
-        int bl = qMin(mw, mh);
-        m_private->boardWidget->setGeometry(m_private->boardLeft + (mw - bl) / 2,
-                                            m_private->boardTop + (mh - bl) / 2,
-                                            bl, bl);
+        adjustBoard();
     }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    if (m_private->shown)
-    {
-        int mw = m_private->mainWidget->width() - m_private->boardLeft - m_private->boardRight;
-        int mh = m_private->mainWidget->height() - m_private->boardTop - m_private->boardBottom;
-        int bl = qMin(mw, mh);
-        m_private->boardWidget->setGeometry(m_private->boardLeft + (mw - bl) / 2,
-                                            m_private->boardTop + (mh - bl) / 2,
-                                            bl, bl);
-    }
+    adjustBoard();
 }
 
 MainWindowPrivate::MainWindowPrivate()
@@ -753,6 +721,8 @@ MainWindowPrivate::MainWindowPrivate()
     buttonPreset = 0;
     buttonInitialize = 0;
     buttonAbout = 0;
+    blankTopLeft = 0;
+    blankBottomRight = 0;
     boardWidget = 0;
     labelTitleTotalTime = 0;
     labelTotalTime = 0;
@@ -762,7 +732,6 @@ MainWindowPrivate::MainWindowPrivate()
     buttonEnd = 0;
 
     currentBoard = 0;
-    values = QList<QList<int> >();
 
     shown = false;
 }
@@ -776,7 +745,6 @@ MainWindowPrivate::~MainWindowPrivate()
         boards.clear();
 
         currentBoard = 0;
-        values.clear();
 
         delete labelBoard;
         delete boxBoard;
@@ -785,6 +753,8 @@ MainWindowPrivate::~MainWindowPrivate()
         delete buttonPreset;
         delete buttonInitialize;
         delete buttonAbout;
+        delete blankTopLeft;
+        delete blankBottomRight;
         delete boardWidget;
         delete labelTitleTotalTime;
         delete labelTotalTime;

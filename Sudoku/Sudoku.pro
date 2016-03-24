@@ -14,15 +14,19 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
            mainwindow.cpp \
+           gridboard.cpp \
+           gridmodel.cpp \
            aboutdialog.cpp \
-           boardwidget.cpp \
            sudokuboard.cpp
 
 HEADERS  += mainwindow.h \
             mainwindow_p.h \
             aboutdialog.h \
             aboutdialog_p.h \
-            boardwidget.h \
+            gridboard.h \
+            gridboard_p.h \
+            gridmodel.h \
+            gridmodel_p.h \
             sudokuboard.h \
             sudokuboard_p.h \
             version.h
@@ -56,7 +60,7 @@ win32 {
 DISTFILES += \
     Resources/Boards/Dodeka.board \
     Resources/Boards/Mini.board \
-    Resources/Boards/Number Place Challenger.board \
+    Resources/Boards/"Number Place Challenger.board" \
     Resources/Boards/Small.board \
     Resources/Boards/Standard.board \
     Resources/Presets/Simple_9x9.sdk

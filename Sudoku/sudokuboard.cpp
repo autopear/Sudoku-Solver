@@ -24,10 +24,18 @@ SudokuBoard::SudokuBoard(SudokuBoard *other, QObject *parent) :
     if (other)
     {
         m_private->name = other->name();
-        m_private->size = other->size();
+        m_private->rows = other->rows();
+        m_private->columns = other->columns();
         m_private->min = other->minimum();
         m_private->max = other->maximum();
         m_private->blocks = other->blocks();
+        m_private->colors = other->colors();
+        m_private->blockMap.clear();
+        foreach (QPolygon block, m_private->blocks)
+        {
+            foreach (QPoint p, block)
+                m_private->blockMap.insert(p, block);
+        }
     }
 }
 
@@ -41,7 +49,7 @@ bool SudokuBoard::isValid() const
     if (m_private->name.isEmpty())
         return false;
 
-    if (m_private->size.width() < 4 || m_private->size.height() < 4)
+    if (m_private->rows < 4 || m_private->columns < 4)
         return false;
 
     if (m_private->min < 1 || m_private->max <= m_private->min)
@@ -63,6 +71,10 @@ bool SudokuBoard::isValid() const
         }
     }
 
+    //Check blocks and colors
+    if (!m_private->colors.isEmpty() && m_private->colors.size() != m_private->blocks.size())
+        return false;
+
     return true;
 }
 
@@ -71,9 +83,14 @@ QString SudokuBoard::name() const
     return m_private->name;
 }
 
-QSize SudokuBoard::size() const
+int SudokuBoard::rows() const
 {
-    return m_private->size;
+    return m_private->rows;
+}
+
+int SudokuBoard::columns() const
+{
+    return m_private->columns;
 }
 
 int SudokuBoard::minimum() const
@@ -89,6 +106,11 @@ int SudokuBoard::maximum() const
 QList<QPolygon> SudokuBoard::blocks() const
 {
     return m_private->blocks;
+}
+
+QList<QColor> SudokuBoard::colors() const
+{
+    return m_private->colors;
 }
 
 QPolygon SudokuBoard::findBlock(const QPoint &pos)
@@ -129,8 +151,8 @@ bool SudokuBoard::saveToFile(const QString &file, QString *error)
 
     if (!m_private->name.isEmpty())
         sdk->write(QString("NAME: %1\n").arg(m_private->name).toUtf8());
-    sdk->write(QString("WIDTH: %1\n").arg(QString::number(m_private->size.width(), 10)).toUtf8());
-    sdk->write(QString("HEIGHT: %1\n").arg(QString::number(m_private->size.height(), 10)).toUtf8());
+    sdk->write(QString("ROWS: %1\n").arg(QString::number(m_private->rows, 10)).toUtf8());
+    sdk->write(QString("COLUMNS: %1\n").arg(QString::number(m_private->columns, 10)).toUtf8());
     sdk->write(QString("MINIMUM: %1\n").arg(QString::number(m_private->min, 10)).toUtf8());
     sdk->write(QString("MAXIMUM: %1\n").arg(QString::number(m_private->max, 10)).toUtf8());
     if (!m_private->blocks.isEmpty())
@@ -175,50 +197,31 @@ void SudokuBoard::setName(const QString &name)
     }
 }
 
-void SudokuBoard::setWidth(int w)
+void SudokuBoard::setRows(int rows)
 {
-    if (w != m_private->size.width())
+    if (rows != m_private->rows)
     {
-        QSize old = m_private->size;
-        m_private->size.setWidth(w);
-        emit widthChanged(old.width());
-        emit sizeChanged(old);
+        int old = m_private->rows;
+        m_private->rows = rows;
+        emit rowsChanged(old);
         emit configurationChanged();
     }
 }
 
-void SudokuBoard::setHeight(int h)
+void SudokuBoard::setColumns(int columns)
 {
-    if (h != m_private->size.height())
+    if (columns != m_private->rows)
     {
-        QSize old = m_private->size;
-        m_private->size.setHeight(h);
-        emit heightChanged(old.height());
-        emit sizeChanged(old);
-        emit configurationChanged();
-    }
-}
-
-void SudokuBoard::setSize(const QSize &size)
-{
-    if (size != m_private->size)
-    {
-        QSize old = m_private->size;
-        bool wChanged = size.width() != m_private->size.width();
-        bool hChanged = size.height() != m_private->size.height();
-        m_private->size = size;
-        if (wChanged)
-            emit widthChanged(old.width());
-        if (hChanged)
-            emit heightChanged(old.height());
-        emit sizeChanged(old);
+        int old = m_private->columns;
+        m_private->rows = columns;
+        emit columnsChanged(old);
         emit configurationChanged();
     }
 }
 
 void SudokuBoard::setMinimum(int min)
 {
-    if (min != m_private->min)
+    if (min != m_private->min && min > -1)
     {
         int old = m_private->min;
         m_private->min = min;
@@ -230,7 +233,7 @@ void SudokuBoard::setMinimum(int min)
 
 void SudokuBoard::setMaximum(int max)
 {
-    if (max != m_private->max)
+    if (max != m_private->max && max > -1)
     {
         int old = m_private->max;
         m_private->max = max;
@@ -242,8 +245,8 @@ void SudokuBoard::setMaximum(int max)
 
 void SudokuBoard::setRange(int min, int max)
 {
-    bool minChanged = min != m_private->min;
-    bool maxChanged = max != m_private->max;
+    bool minChanged = (min != m_private->min && min > -1);
+    bool maxChanged = (max != m_private->max && max > -1);
 
     if (minChanged || maxChanged)
     {
@@ -288,20 +291,35 @@ void SudokuBoard::setBlocks(const QList<QPolygon> &blocks)
     }
 }
 
+void SudokuBoard::setColors(const QList<QColor> &colors)
+{
+    if (colors != m_private->colors)
+    {
+        QList<QColor> old = m_private->colors;
+        m_private->colors = colors;
+
+        emit colorsChanged(old);
+        emit configurationChanged();
+    }
+}
+
 SudokuBoardPrivate::SudokuBoardPrivate()
 {
     name = QString();
-    size = QSize();
-    min = -1;
-    max = -1;
+    rows = 0;
+    columns = 0;
+    min = 0;
+    max = 0;
     blocks = QList<QPolygon>();
     blockMap = QMap<QPoint, QPolygon>();
+    colors = QList<QColor>();
 }
 
 SudokuBoardPrivate::~SudokuBoardPrivate()
 {
     blocks.clear();
     blockMap.clear();
+    colors.clear();
 }
 
 int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
@@ -319,10 +337,11 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
     QStringList lines = content.split("\n", QString::SkipEmptyParts);
 
     QString newName;
-    QSize newSize;
+    int newRows, newColumns;
     int newMin, newMax;
     QList<QPolygon> newBlocks;
-    bool foundName = false, foundWidth = false, foundHeight = false, foundMin = false, foundMax = false, foundBlocks = false;
+    QList<QColor> newColors;
+    bool foundName = false, foundRows = false, foundColumns = false, foundMin = false, foundMax = false, foundBlocks = false, foundColors = false;
 
     bool isBlocks = false;
     foreach (QString line, lines)
@@ -357,7 +376,7 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
                 foundName = true;
             }
         }
-        else if (line.startsWith("WIDTH:", Qt::CaseInsensitive))
+        else if (line.startsWith("ROWS:", Qt::CaseInsensitive))
         {
             if (isBlocks)
             {
@@ -367,7 +386,7 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
                 delete sdk;
                 return -1;
             }
-            else if (foundWidth)
+            else if (foundRows)
             {
                 if (error)
                     *error = QObject::tr("Duplicate WIDTH defined.");
@@ -377,26 +396,26 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
             }
             else
             {
-                line = line.remove(0, 6).trimmed();
+                line = line.remove(0, 5).trimmed();
                 int comment = line.indexOf("#");
                 if (comment > -1)
                     line = line.left(comment);
                 line = line.remove(" ").remove("\t");
                 bool isInt;
-                newSize.setWidth(line.toInt(&isInt, 10));
+                newRows = line.toInt(&isInt, 10);
                 if (isInt)
-                    foundWidth = true;
+                    foundRows = true;
                 else
                 {
                     if (error)
-                        *error = QObject::tr("Invalid WIDTH.");
+                        *error = QObject::tr("Invalid ROWS.");
                     sdk->close();
                     delete sdk;
                     return -1;
                 }
             }
         }
-        else if (line.startsWith("HEIGHT:", Qt::CaseInsensitive))
+        else if (line.startsWith("COLUMNS:", Qt::CaseInsensitive))
         {
             if (isBlocks)
             {
@@ -406,7 +425,7 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
                 delete sdk;
                 return -1;
             }
-            else if (foundHeight)
+            else if (foundColumns)
             {
                 if (error)
                     *error = QObject::tr("Duplicate HEIGHT defined.");
@@ -416,19 +435,19 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
             }
             else
             {
-                line = line.remove(0, 7).trimmed();
+                line = line.remove(0, 8).trimmed();
                 int comment = line.indexOf("#");
                 if (comment > -1)
                     line = line.left(comment);
                 line = line.remove(" ").remove("\t");
                 bool isInt;
-                newSize.setHeight(line.toInt(&isInt, 10));
+                newColumns = line.toInt(&isInt, 10);
                 if (isInt)
-                    foundHeight = true;
+                    foundColumns = true;
                 else
                 {
                     if (error)
-                        *error = QObject::tr("Invalid HEIGHT.");
+                        *error = QObject::tr("Invalid COLUMNS.");
                     sdk->close();
                     delete sdk;
                     return -1;
@@ -463,7 +482,18 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
                 bool isInt;
                 newMin = line.toInt(&isInt, 10);
                 if (isInt)
-                    foundMin = true;
+                {
+                    if (newMin < 0)
+                    {
+                        if (error)
+                            *error = QObject::tr("Invalid MINIMUM.");
+                        sdk->close();
+                        delete sdk;
+                        return -1;
+                    }
+                    else
+                        foundMin = true;
+                }
                 else
                 {
                     if (error)
@@ -502,7 +532,18 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
                 bool isInt;
                 newMax = line.toInt(&isInt, 10);
                 if (isInt)
-                    foundMax = true;
+                {
+                    if (newMax < 0)
+                    {
+                        if (error)
+                            *error = QObject::tr("Invalid MAXIMUM.");
+                        sdk->close();
+                        delete sdk;
+                        return -1;
+                    }
+                    else
+                        foundMax = true;
+                }
                 else
                 {
                     if (error)
@@ -643,6 +684,53 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
                 }
             }
         }
+        else if (line.startsWith("COLORS:", Qt::CaseInsensitive))
+        {
+            if (isBlocks)
+            {
+                if (error)
+                    *error = QObject::tr("Syntax error found.");
+                sdk->close();
+                delete sdk;
+                return -1;
+            }
+            else if (foundColors)
+            {
+                if (error)
+                    *error = QObject::tr("Duplicate COLORS defined.");
+                sdk->close();
+                delete sdk;
+                return -1;
+            }
+            else
+            {
+                line = line.remove(0, 7).trimmed();
+
+                QStringList list = line.split(",", QString::KeepEmptyParts);
+                foreach (QString str, list)
+                {
+                    str = str.trimmed();
+                    if (str.isEmpty())
+                        newColors.append(Qt::white);
+                    else
+                    {
+                        QColor color(str.trimmed());
+                        if (color.isValid())
+                            newColors.append(color);
+                        else
+                        {
+                            if (error)
+                                *error = QObject::tr("Invalid COLORS defined. \"%1\" is not a valid color.").arg(str);
+                            sdk->close();
+                            delete sdk;
+                            return -1;
+                        }
+                    }
+                }
+
+                foundColors = true;
+            }
+        }
         else if (line.startsWith("#"))
             continue;
         else if (isBlocks)
@@ -770,16 +858,16 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
             *error = QObject::tr("NAME is undefined.");
         return -1;
     }
-    if (!foundWidth)
+    if (!foundRows)
     {
         if (error)
-            *error = QObject::tr("WIDTH is undefined.");
+            *error = QObject::tr("ROWS is undefined.");
         return -1;
     }
-    if (!foundHeight)
+    if (!foundColumns)
     {
         if (error)
-            *error = QObject::tr("HEIGHT is undefined.");
+            *error = QObject::tr("COLUMNS is undefined.");
         return -1;
     }
     if (!foundMin)
@@ -803,11 +891,20 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
         return -1;
     }
 
+    if (foundColors && newBlocks.size() != newColors.size())
+    {
+        if (error)
+            *error = QObject::tr("BLOCKS is undefined.");
+        return -1;
+    }
+
     if (newName.compare(name) == 0 &&
-            newSize == size &&
+            newRows == rows &&
+            newColumns == columns &&
             newMin == min &&
             newMax == max &&
-            newBlocks == blocks)
+            newBlocks == blocks &&
+            newColors == colors)
     {
         if (error)
             error->clear();
@@ -816,10 +913,12 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
     else
     {
         name = newName;
-        size = newSize;
+        rows = newRows;
+        columns = newColumns;
         min = newMin;
         max = newMax;
         blocks = newBlocks;
+        colors = newColors;
 
         foreach (QPolygon block, blocks)
         {

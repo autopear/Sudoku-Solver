@@ -3,6 +3,7 @@
 
 //Model for Sudoku board
 
+#include <QColor>
 #include <QMap>
 #include <QObject>
 #include <QPoint>
@@ -27,9 +28,9 @@ public:
 
     QString name() const;
 
-    QSize size() const; //Board size
-    inline int width() const { return size().width(); }
-    inline int height() const { return size().height(); }
+    //Board size
+    int rows() const;
+    int columns() const;
 
     int minimum() const; //Minimum value
     int maximum() const; //Maximum value
@@ -38,32 +39,35 @@ public:
 
     //Return the block that the cell belongs to, or empty block if the cell does not belong to any block
     QPolygon findBlock(const QPoint &pos);
-    inline QPolygon findBlock(int x, int y) { return findBlock(QPoint(x, y)); }
+    inline QPolygon findBlock(int row, int column) { return findBlock(QPoint(row, column)); }
+
+    //Background color for blocks, this is optional
+    QList<QColor> colors() const;
 
     bool saveToFile(const QString &file, QString *error = 0);
 
 signals:
     void configurationChanged();
     void nameChanged(const QString &oldName);
-    void widthChanged(int oldWidth);
-    void heightChanged(int oldHeight);
-    void sizeChanged(const QSize &oldSize);
+    void rowsChanged(int oldRows);
+    void columnsChanged(int oldColumns);
     void minimumChanged(int oldMin);
     void maximumChanged(int oldMax);
     void rangeChanged(int oldMin, int oldMax);
     void blocksChanged(const QList<QPolygon> &oldBlocks);
+    void colorsChanged(const QList<QColor> &colors);
 
 public slots:
     bool loadFromFile(const QString &file, QString *error = 0);
     void setName(const QString &name);
-    void setWidth(int w);
-    void setHeight(int h);
-    void setSize(const QSize &size);
-    inline void setSize(int w, int h) { setSize(QSize(w, h)); }
+    void setRows(int rows);
+    void setColumns(int columns);
+    inline void setSize(int rows, int columns) { setRows(rows); setColumns(columns); }
     void setMinimum(int min);
     void setMaximum(int max);
     void setRange(int min, int max);
     void setBlocks(const QList<QPolygon> &blocks);
+    void setColors(const QList<QColor> &colors);
 
 private:
     SudokuBoardPrivate *m_private;
