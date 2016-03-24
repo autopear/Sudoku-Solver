@@ -8,4 +8,4 @@ BLOCKS:
 [(0, 2), (0, 3), (1, 2), (1, 3)],
 [(2, 0), (2, 1), (3, 0), (3, 1)],
 [(2, 2), (2, 3), (3, 2), (3, 3)];
-COLORS: #E5E4E2, white, white, #E5E4E2
+COLORS: #E5E4E2, #FFFFFF, #FFFFFF, #E5E4E2

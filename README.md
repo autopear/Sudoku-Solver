@@ -4,7 +4,7 @@ CIS 5603 course project
 I will try to add more details.
 
 This is a small Sudoku board defined in SudokuBoard class.
-<img src="https://github.com/autopear/Sudoku-Solver/blob/master/Documents/Images/001.png">
+<img src="https://github.com/autopear/Sudoku-Solver/blob/master/Documents/Images/01.png">
 
 Every cell is identified with an X value and Y value, which is the row and column of the cell, starting from 0. So the cell on the top left corner is (0, 0).
 
