@@ -14,7 +14,9 @@ SudokuBoard::SudokuBoard(const QString &file, QObject *parent) :
     QObject(parent),
     m_private(new SudokuBoardPrivate())
 {
-    m_private->loadFromFile(file, 0);
+    QString error;
+    if (m_private->loadFromFile(file, &error) == -1)
+        qDebug(error.toUtf8());
 }
 
 SudokuBoard::SudokuBoard(SudokuBoard *other, QObject *parent) :
@@ -159,6 +161,14 @@ bool SudokuBoard::saveToFile(const QString &file, QString *error)
     {
         sdk->write("BLOCKS:\n");
         sdk->write(stringFromBlocks(m_private->blocks).toUtf8());
+        sdk->write("\n");
+    }
+    if (!m_private->colors.isEmpty())
+    {
+        QStringList colors;
+        foreach (QColor color, m_private->colors)
+            colors.append(color.name().toUpper());
+        sdk->write(QString("COLORS: %1\n").arg(colors.join(", ")).toUtf8());
     }
     sdk->close();
     delete sdk;

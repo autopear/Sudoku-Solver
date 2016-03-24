@@ -35,7 +35,8 @@ public:
     int minimum() const; //Minimum value
     int maximum() const; //Maximum value
 
-    QList<QPolygon> blocks() const; //All inner blocks
+    //All inner blocks, this is optional
+    QList<QPolygon> blocks() const;
 
     //Return the block that the cell belongs to, or empty block if the cell does not belong to any block
     QPolygon findBlock(const QPoint &pos);
