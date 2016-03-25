@@ -61,6 +61,9 @@ protected:
     //Return 0 for success, -1 for any error, 1 for success, but is the same as the current configuration
     int loadFromFile(const QString &file, QString *error);
 
+    void updateBlockMap();
+    void updateColorMap();
+
     //Sort all cells in a block in ascending order.
     //No duplicates are allowed
     //cell(x1, y1) is smaller than cell(x2, y2) if:
@@ -83,8 +86,9 @@ protected:
     int min;
     int max;    
     QList<QPolygon> blocks;
-    QMap<QPoint, QPolygon> blockMap;
+    QMap<QPoint, QList<QPolygon> > blockMap;
     QList<QColor> colors;
+    QMap<QPoint, QColor> colorMap;
 };
 
 }

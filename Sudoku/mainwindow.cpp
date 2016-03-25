@@ -77,6 +77,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_private->boxAlgorithm = new QComboBox(this);
     m_private->boxAlgorithm->addItem(tr("Select..."));
+    m_private->boxAlgorithm->addItem(tr("Algorithm 1")); //Test
+    m_private->boxAlgorithm->addItem(tr("Algorithm 2")); //Test
+    m_private->boxAlgorithm->addItem(tr("Algorithm 3")); //Test
     connect(m_private->boxAlgorithm, SIGNAL(currentIndexChanged(int)),
             this, SLOT(onAlgorithmSelected(int)));
 
@@ -148,6 +151,7 @@ MainWindow::MainWindow(QWidget *parent) :
     rightLayout->addWidget(m_private->buttonPreset, 0, Qt::AlignCenter);
     rightLayout->addSpacing(10);
     rightLayout->addWidget(m_private->buttonInitialize, 0, Qt::AlignCenter);
+    rightLayout->addSpacing(50);
     rightLayout->addStretch();
     rightLayout->addWidget(m_private->buttonAbout, 0, Qt::AlignCenter);
 
@@ -238,14 +242,7 @@ void MainWindow::onBoardSelected(int index)
             for (int i=0; i<board->rows(); i++)
             {
                 for (int j=0; j<board->columns(); j++)
-                {
-                    QPolygon block = board->findBlock(i, j);
-                    if (!block.isEmpty())
-                    {
-                        int idx = board->blocks().indexOf(block);
-                        m_private->boardWidget->setBackgroundColor(i, j, board->colors().at(idx));
-                    }
-                }
+                    m_private->boardWidget->setBackgroundColor(i, j, board->color(i, j));
             }
         }
 
@@ -269,7 +266,10 @@ void MainWindow::onBoardSelected(int index)
 
 void MainWindow::onAlgorithmSelected(int index)
 {
-
+    //To do...
+    QMessageBox::information(this,
+                             "Not implemented.",
+                             "Not implemented.");
 }
 
 void MainWindow::showAbout()
@@ -282,38 +282,58 @@ void MainWindow::showAbout()
 void MainWindow::nextStep()
 {
     //To do...
+    QMessageBox::information(this,
+                             "Not implemented.",
+                             "Not implemented.");
 }
 
 void MainWindow::goToEnd()
 {
     //To do...
+    QMessageBox::information(this,
+                             "Not implemented.",
+                             "Not implemented.");
 }
 
 void MainWindow::stop()
 {
     //To do...
+    QMessageBox::information(this,
+                             "Not implemented.",
+                             "Not implemented.");
 }
 
 void MainWindow::onValueChanged(int row, int column, int oldValue, int newValue)
 {
+    Q_UNUSED(row);
+    Q_UNUSED(column);
     Q_UNUSED(oldValue);
     Q_UNUSED(newValue);
 
     QPoint p1 = QPoint(-1, -1), p2 = QPoint(1, -1);
-    if (!validateRow(row, &p1, &p2))
+    for (int i=0; i<m_private->currentBoard->rows(); i++)
     {
-        m_private->boardWidget->setHighlight(p1, p2);
-        return;
+        if (!validateRow(i, &p1, &p2))
+        {
+            m_private->boardWidget->setHighlight(p1, p2);
+            return;
+        }
     }
-    if (!validateColumn(column, &p1, &p2))
+    for (int i=0; i<m_private->currentBoard->columns(); i++)
     {
-        m_private->boardWidget->setHighlight(p1, p2);
-        return;
+        if (!validateColumn(i, &p1, &p2))
+        {
+            m_private->boardWidget->setHighlight(p1, p2);
+            return;
+        }
     }
-    if (!validateBlock(m_private->currentBoard->findBlock(row, column), &p1, &p2))
+    foreach (QPolygon block, m_private->currentBoard->blocks())
     {
-        m_private->boardWidget->setHighlight(p1, p2);
-        return;
+        if (!validateBlock(block, &p1, &p2))
+        {
+            m_private->boardWidget->setHighlight(p1, p2);
+            return;
+        }
     }
     m_private->boardWidget->setHighlight(p1, p2);
 }

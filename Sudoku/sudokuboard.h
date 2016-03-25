@@ -39,11 +39,14 @@ public:
     QList<QPolygon> blocks() const;
 
     //Return the block that the cell belongs to, or empty block if the cell does not belong to any block
-    QPolygon findBlock(const QPoint &pos);
-    inline QPolygon findBlock(int row, int column) { return findBlock(QPoint(row, column)); }
+    QList<QPolygon> findBlocks(const QPoint &pos);
+    inline QList<QPolygon> findBlocks(int row, int column) { return findBlocks(QPoint(row, column)); }
 
     //Background color for blocks, this is optional
     QList<QColor> colors() const;
+
+    QColor color(const QPoint &pos) const;
+    inline QColor color(int row, int column) const { return color(QPoint(row, column)); }
 
     bool saveToFile(const QString &file, QString *error = 0);
 

@@ -35,12 +35,8 @@ SudokuBoard::SudokuBoard(SudokuBoard *other, QObject *parent) :
         m_private->max = other->maximum();
         m_private->blocks = other->blocks();
         m_private->colors = other->colors();
-        m_private->blockMap.clear();
-        foreach (QPolygon block, m_private->blocks)
-        {
-            foreach (QPoint p, block)
-                m_private->blockMap.insert(p, block);
-        }
+        m_private->updateBlockMap();
+        m_private->updateColorMap();
     }
 }
 
@@ -52,25 +48,15 @@ SudokuBoard::~SudokuBoard()
 bool SudokuBoard::isValid() const
 {
     if (m_private->name.isEmpty())
-    {
-        qDebug("Name is undefined.");
         return false;
-    }
 
     if (m_private->rows < 4 || m_private->columns < 4)
-    {
-        qDebug(QString("ROWS or COLUMNS is too small of \"%1\"").arg(m_private->name).toUtf8());
         return false;
-    }
 
     if (m_private->min < 1 || m_private->max <= m_private->min)
-    {
-        qDebug(QString("Invalid MINIMUM or MAXIMUM of \"%1\"").arg(m_private->name).toUtf8());
         return false;
-    }
 
     //Check blocks;
-    QList<QPoint> tmp;
     foreach (QPolygon block, m_private->blocks)
     {
         if (block.isEmpty())
@@ -78,23 +64,16 @@ bool SudokuBoard::isValid() const
 
         foreach (QPoint p, block)
         {
-            if (tmp.contains(p))
-            {
-                qDebug(QString("Cell (%1, %2) already defined in a block of \"%3\".")
-                       .arg(p.x()).arg(p.y()).arg(m_private->name).toUtf8());
+            //Any cell must in grid
+            if (p.x() < 0 || p.x() >= m_private->rows ||
+                    p.y() < 0 || p.y() >= m_private->columns)
                 return false;
-            }
-            else
-                tmp.append(p);
         }
     }
 
     //Check blocks and colors
     if (!m_private->colors.isEmpty() && m_private->colors.size() != m_private->blocks.size())
-    {
-        qDebug(QString("BLOCKS and COLORS mismatch of \"%1\"").arg(m_private->name).toUtf8());
         return false;
-    }
 
     return true;
 }
@@ -134,9 +113,14 @@ QList<QColor> SudokuBoard::colors() const
     return m_private->colors;
 }
 
-QPolygon SudokuBoard::findBlock(const QPoint &pos)
+QColor SudokuBoard::color(const QPoint &pos) const
 {
-    return m_private->blockMap.value(pos, QPolygon());
+    return m_private->colorMap.value(pos, QColor());
+}
+
+QList<QPolygon> SudokuBoard::findBlocks(const QPoint &pos)
+{
+    return m_private->blockMap.value(pos, QList<QPolygon>());
 }
 
 static QString stringFromPoint(const QPoint &p)
@@ -307,13 +291,11 @@ void SudokuBoard::setBlocks(const QList<QPolygon> &blocks)
     {
         QList<QPolygon> old = m_private->blocks;
         m_private->blocks = newBlocks;
-        m_private->blockMap.clear();
 
-        foreach (QPolygon block, newBlocks)
-        {
-            foreach (QPoint p, block)
-                m_private->blockMap.insert(p, block);
-        }
+        m_private->updateBlockMap();
+
+        if (m_private->colors.size() == m_private->blocks.size())
+            m_private->updateColorMap();
 
         emit blocksChanged(old);
         emit configurationChanged();
@@ -326,6 +308,9 @@ void SudokuBoard::setColors(const QList<QColor> &colors)
     {
         QList<QColor> old = m_private->colors;
         m_private->colors = colors;
+
+        if (m_private->colors.size() == m_private->blocks.size())
+            m_private->updateColorMap();
 
         emit colorsChanged(old);
         emit configurationChanged();
@@ -340,8 +325,9 @@ SudokuBoardPrivate::SudokuBoardPrivate()
     min = 0;
     max = 0;
     blocks = QList<QPolygon>();
-    blockMap = QMap<QPoint, QPolygon>();
+    blockMap = QMap<QPoint, QList<QPolygon> >();
     colors = QList<QColor>();
+    colorMap = QMap<QPoint, QColor>();
 }
 
 SudokuBoardPrivate::~SudokuBoardPrivate()
@@ -349,6 +335,7 @@ SudokuBoardPrivate::~SudokuBoardPrivate()
     blocks.clear();
     blockMap.clear();
     colors.clear();
+    colorMap.clear();
 }
 
 int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
@@ -949,15 +936,68 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
         blocks = newBlocks;
         colors = newColors;
 
-        foreach (QPolygon block, blocks)
-        {
-            foreach (QPoint p, block)
-                blockMap.insert(p, block);
-        }
+        updateBlockMap();
+        updateColorMap();
 
         if (error)
             error->clear();
         return 0;
+    }
+}
+
+void SudokuBoardPrivate::updateBlockMap()
+{
+    blockMap.clear();
+
+    if (blocks.isEmpty())
+        return;
+
+    foreach (QPolygon block, blocks)
+    {
+        foreach (QPoint p, block)
+        {
+            QList<QPolygon> blocks = blockMap.value(p, QList<QPolygon>());
+            if (!blocks.contains(block))
+            {
+                blocks.append(block);
+                blockMap.insert(p, blocks);
+            }
+        }
+    }
+
+    foreach (QPoint p, blockMap.keys())
+    {
+        QList<QPolygon> blocks = blockMap.value(p);
+        sortBlocks(&blocks);
+        blockMap.insert(p, blocks);
+    }
+}
+
+void SudokuBoardPrivate::updateColorMap()
+{
+    colorMap.clear();
+
+    if (blocks.isEmpty() || colors.isEmpty() || colors.size() != blocks.size())
+        return;
+
+    for (int i=0; i<colors.size(); i++)
+    {
+        QColor color = colors.at(i);
+        QPolygon block = blocks.at(i);
+
+        foreach (QPoint p, block)
+        {
+            if (colorMap.keys().contains(p))
+            {
+                QColor r = colorMap.value(p);
+                r.setRedF((r.redF() + color.redF()) / 2);
+                r.setGreenF((r.greenF() + color.greenF()) / 2);
+                r.setBlueF((r.blueF() + color.blueF()) / 2);
+                colorMap.insert(p, r);
+            }
+            else
+                colorMap.insert(p, color);
+        }
     }
 }
 

@@ -45,6 +45,7 @@ public slots:
     //If two cells have the same non-empty value, both p1 and p2 will be set.
     bool validateBlock(const QPolygon &block, QPoint *p1, QPoint *p2);
 
+    //Adjust board geometry to maintain aspect ratio and alignment
     void adjustBoard();
 
 protected:
