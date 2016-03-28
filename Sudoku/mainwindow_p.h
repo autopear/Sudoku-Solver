@@ -4,6 +4,7 @@
 #include <QList>
 #include "mainwindow.h"
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPushButton;
@@ -43,6 +44,8 @@ protected:
     QLabel *labelAlgorithm;
     QComboBox *boxAlgorithm;
 
+    QCheckBox *checkMultiThread;
+
     QPushButton *buttonPreset;
 
     QPushButton *buttonInitialize;
@@ -65,6 +68,8 @@ protected:
     QPushButton *buttonEnd;
 
     SudokuSolver *solver;
+
+    QString lastPreset;
 };
 
 }

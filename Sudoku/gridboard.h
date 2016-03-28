@@ -31,8 +31,10 @@ public:
     int value(int row, int column) const;
     int value(const QPoint &pos) const;
 
-    QList<int> availableValues(int row, int column) const;
-    QList<int> availableValues(const QPoint &pos) const;
+    QList<int> availableValues(int row, int column, bool multiThread = true);
+    QList<int> availableValues(const QPoint &pos, bool multiThread = true);
+
+    QPoint getBestCell(int *value, bool multiThread = true);
 
     int rows() const;
     int columns() const;

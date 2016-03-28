@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QDragEnterEvent>
@@ -84,6 +85,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_private->boxAlgorithm, SIGNAL(currentIndexChanged(int)),
             this, SLOT(onAlgorithmSelected(int)));
 
+    m_private->checkMultiThread = new QCheckBox(tr("&Multi-threading"), this);
+    m_private->checkMultiThread->setChecked(true);
+
     m_private->buttonPreset = new QPushButton(tr("&Preset"), this);
     m_private->buttonPreset->setToolTip(tr("Load a .sdk file with preset values into the board.\n\nYou can also drag a .sdk file to the main window."));
     m_private->buttonPreset->setAutoDefault(false);
@@ -148,6 +152,8 @@ MainWindow::MainWindow(QWidget *parent) :
     rightLayout->addSpacing(10);
     rightLayout->addWidget(m_private->labelAlgorithm);
     rightLayout->addWidget(m_private->boxAlgorithm);
+    rightLayout->addSpacing(10);
+    rightLayout->addWidget(m_private->checkMultiThread);
     rightLayout->addSpacing(20);
     rightLayout->addWidget(m_private->buttonPreset, 0, Qt::AlignCenter);
     rightLayout->addSpacing(10);
@@ -382,21 +388,22 @@ void MainWindow::onTerminated(qint64 totalTime, const QString &message)
 
 void MainWindow::loadPreset()
 {
+    QString defaultFile = m_private->lastPreset;
+    if (defaultFile.isEmpty() || !QFile::exists(defaultFile))
+    {
 #ifdef Q_OS_MAC
-    QDir current(qApp->applicationDirPath());
-    current.cdUp();
-    current.cdUp();
+        QDir current(qApp->applicationDirPath());
+        current.cdUp();
+        current.cdUp();
+        current.cdUp();
+#endif
+        defaultFile = current.absolutePath();
+    }
 
     QString sdk = QFileDialog::getOpenFileName(this,
                                                tr("Select Sudoku Preset"),
-                                               current.absolutePath(),
+                                               defaultFile,
                                                "*.sdk");
-#else
-    QString sdk = QFileDialog::getOpenFileName(this,
-                                               tr("Select Sudoku Preset"),
-                                               qApp->applicationDirPath(),
-                                               "*.sdk");
-#endif
 
     if (sdk.isEmpty())
         return;
@@ -415,6 +422,8 @@ void MainWindow::initialize()
 
 bool MainWindow::presetFromFile(const QString &file, bool showError)
 {
+    m_private->lastPreset = file;
+
     if (!m_private->currentBoard)
     {
         if (showError)
@@ -529,6 +538,12 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
                     m_private->boardWidget->setValue(i, j, v);
             }
         }
+
+        if (m_private->solver)
+            m_private->solver->reset();
+
+        m_private->labelStepTime->setText("0.000");
+        m_private->labelTotalTime->setText("0.000");
 
         return true;
     }
@@ -802,6 +817,7 @@ MainWindowPrivate::MainWindowPrivate()
     boxBoard = 0;
     labelAlgorithm = 0;
     boxAlgorithm = 0;
+    checkMultiThread = 0;
     buttonPreset = 0;
     buttonInitialize = 0;
     buttonAbout = 0;
@@ -839,6 +855,7 @@ MainWindowPrivate::~MainWindowPrivate()
         delete boxBoard;
         delete labelAlgorithm;
         delete boxAlgorithm;
+        delete checkMultiThread;
         delete buttonPreset;
         delete buttonInitialize;
         delete buttonAbout;
