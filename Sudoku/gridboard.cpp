@@ -3,6 +3,8 @@
 #include <QFont>
 #include <QHBoxLayout>
 #include "gridmodel.h"
+#include "mainwindow.h"
+#include "sudokuboard.h"
 #include "gridboard_p.h"
 #include "gridboard.h"
 
@@ -78,6 +80,64 @@ int GridBoard::value(int row, int column) const
 int GridBoard::value(const QPoint &pos) const
 {
     return m_private->model->value(pos.y(), pos.x());
+}
+
+QList<int> GridBoard::availableValues(int row, int column) const
+{
+    if (row > -1 && row < m_private->model->rowCount() && column > -1 && column < m_private->model->columnCount())
+    {
+        int currentValue = m_private->model->value(row, column);
+        if (currentValue > 0)
+            return QList<int>() << currentValue;
+
+        int rows = m_private->model->rowCount();
+        int columns = m_private->model->columnCount();
+
+        QList<int> usedValues;
+        for (int i=0; i<rows; i++)
+        {
+            int aValue = m_private->model->value(i, column);
+            if (aValue > 0)
+                usedValues.append(aValue);
+        }
+        for (int i=0; i<columns; i++)
+        {
+            int aValue = m_private->model->value(row, i);
+            if (aValue > 0)
+                usedValues.append(aValue);
+        }
+
+        MainWindow *mw = qobject_cast<MainWindow *>(parentWidget());
+        if (mw && mw->currentBoard())
+        {
+            QList<QPolygon> blocks = mw->currentBoard()->findBlocks(row, column);
+            foreach (QPolygon block, blocks)
+            {
+                foreach (QPoint cell, block)
+                {
+                    int aValue = m_private->model->value(cell.x(), cell.y());
+                    if (aValue > 0)
+                        usedValues.append(aValue);
+                }
+            }
+        }
+
+        QList<int> availables;
+        int max = qMax(rows, columns);
+        for (int i=1; i<=max; i++)
+        {
+            if (!usedValues.contains(i))
+                availables.append(i);
+        }
+        return availables;
+    }
+
+    return QList<int>();
+}
+
+QList<int> GridBoard::availableValues(const QPoint &pos) const
+{
+    return availableValues(pos.x(), pos.y());
 }
 
 void GridBoard::setValue(int row, int column, int value)

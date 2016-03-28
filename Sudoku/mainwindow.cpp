@@ -18,6 +18,7 @@
 #include "aboutdialog.h"
 #include "gridboard.h"
 #include "sudokuboard.h"
+#include "sudokusolver.h"
 #include "mainwindow_p.h"
 #include "mainwindow.h"
 
@@ -117,11 +118,11 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_private->labelTitleTotalTime = new QLabel(tr("Total Time:"), this);
 
-    m_private->labelTotalTime = new QLabel(tr("0 ms"), this);
+    m_private->labelTotalTime = new QLabel("0.000", this);
 
     m_private->labelTitleStepTime = new QLabel(tr("Current Step:"), this);
 
-    m_private->labelStepTime = new QLabel(tr("0 ms"), this);
+    m_private->labelStepTime = new QLabel("0.000", this);
 
     m_private->buttonNext = new QPushButton(tr("&Next"), this);
     m_private->buttonNext->setAutoDefault(false);
@@ -155,15 +156,16 @@ MainWindow::MainWindow(QWidget *parent) :
     rightLayout->addStretch();
     rightLayout->addWidget(m_private->buttonAbout, 0, Qt::AlignCenter);
 
-    QHBoxLayout *labels = new QHBoxLayout();
+    QGridLayout *labels = new QGridLayout();
     labels->setContentsMargins(0, 0, 0, 0);
-    labels->addStretch();
-    labels->addWidget(m_private->labelTitleTotalTime);
-    labels->addWidget(m_private->labelTotalTime);
-    labels->addStretch();
-    labels->addWidget(m_private->labelTitleStepTime);
-    labels->addWidget(m_private->labelStepTime);
-    labels->addStretch();
+    labels->addWidget(m_private->labelTitleStepTime, 0, 1);
+    labels->addWidget(m_private->labelStepTime, 0, 2);
+    labels->addWidget(m_private->labelTitleTotalTime, 1, 1);
+    labels->addWidget(m_private->labelTotalTime, 1, 2);
+    labels->setColumnStretch(0, 1);
+    labels->setColumnStretch(1, 0);
+    labels->setColumnStretch(2, 0);
+    labels->setColumnStretch(3, 1);
 
     QHBoxLayout *buttons = new QHBoxLayout();
     buttons->setContentsMargins(0, 0, 0, 0);
@@ -199,8 +201,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_private->buttonInitialize->setEnabled(false);
     m_private->buttonPreset->setEnabled(false);
-    m_private->buttonNext->setEnabled(false);
-    m_private->buttonEnd->setEnabled(false);
+    m_private->updateWidgets();
 }
 
 MainWindow::~MainWindow()
@@ -246,30 +247,50 @@ void MainWindow::onBoardSelected(int index)
             }
         }
 
+        if (m_private->solver)
+            delete m_private->solver;
+
+        m_private->solver = new SudokuSolver(m_private->boardWidget, board, this);
+        connect(m_private->solver, SIGNAL(proceeded(int,int,int,qint64,qint64)),
+                this, SLOT(onProceeded(int,int,int,qint64,qint64)));
+        connect(m_private->solver, SIGNAL(terminated(qint64,QString)),
+                this, SLOT(onTerminated(qint64,QString)));
+        connect(m_private->solver, SIGNAL(finished(qint64)),
+                this, SLOT(onFinished(qint64)));
+
         m_private->buttonInitialize->setEnabled(true);
         m_private->buttonPreset->setEnabled(true);
-        m_private->buttonNext->setEnabled(true);
-        m_private->buttonEnd->setEnabled(true);
 
         adjustBoard();
     }
     else
     {
+        if (m_private->solver)
+        {
+            delete m_private->solver;
+            m_private->solver = 0;
+        }
+
         m_private->buttonInitialize->setEnabled(false);
         m_private->buttonPreset->setEnabled(false);
-        m_private->buttonNext->setEnabled(false);
-        m_private->buttonEnd->setEnabled(false);
         m_private->boardWidget->clear();
     }
     initialize();
+
+    m_private->updateWidgets();
 }
 
 void MainWindow::onAlgorithmSelected(int index)
 {
-    //To do...
-    QMessageBox::information(this,
-                             "Not implemented.",
-                             "Not implemented.");
+    if (m_private->solver)
+    {
+        if (index < 1)
+            m_private->solver->setAlgorithm(QString());
+        else
+            m_private->solver->setAlgorithm(m_private->boxAlgorithm->itemText(index));
+    }
+
+    m_private->updateWidgets();
 }
 
 void MainWindow::showAbout()
@@ -281,26 +302,20 @@ void MainWindow::showAbout()
 
 void MainWindow::nextStep()
 {
-    //To do...
-    QMessageBox::information(this,
-                             "Not implemented.",
-                             "Not implemented.");
+    if (m_private->buttonNext->isEnabled() && m_private->solver)
+        m_private->solver->nextStep();
 }
 
 void MainWindow::goToEnd()
 {
-    //To do...
-    QMessageBox::information(this,
-                             "Not implemented.",
-                             "Not implemented.");
+    if (m_private->buttonNext->isEnabled() && m_private->solver)
+        m_private->solver->goToEnd();
 }
 
 void MainWindow::stop()
 {
-    //To do...
-    QMessageBox::information(this,
-                             "Not implemented.",
-                             "Not implemented.");
+    if (m_private->buttonNext->isEnabled() && m_private->solver && m_private->solver->isRunning())
+        m_private->solver->stop();
 }
 
 void MainWindow::onValueChanged(int row, int column, int oldValue, int newValue)
@@ -338,6 +353,33 @@ void MainWindow::onValueChanged(int row, int column, int oldValue, int newValue)
     m_private->boardWidget->setHighlight(p1, p2);
 }
 
+void MainWindow::onProceeded(int value, int row, int column, qint64 stepTime, qint64 totalTime)
+{
+    Q_UNUSED(value);
+    Q_UNUSED(row);
+    Q_UNUSED(column);
+
+    m_private->boardWidget->setHighlight(-1, -1, -1, -1);
+
+    m_private->labelStepTime->setText(MainWindowPrivate::msToString(stepTime));
+    m_private->labelTotalTime->setText(MainWindowPrivate::msToString(totalTime));
+}
+
+void MainWindow::onFinished(qint64 totalTime)
+{
+    m_private->labelTotalTime->setText(MainWindowPrivate::msToString(totalTime));
+}
+
+void MainWindow::onTerminated(qint64 totalTime, const QString &message)
+{
+    m_private->labelTotalTime->setText(MainWindowPrivate::msToString(totalTime));
+
+    if (!message.isEmpty())
+        QMessageBox::information(this,
+                                 windowTitle(),
+                                 message);
+}
+
 void MainWindow::loadPreset()
 {
 #ifdef Q_OS_MAC
@@ -367,8 +409,8 @@ void MainWindow::initialize()
     if (m_private->currentBoard)
         m_private->boardWidget->clearContents();
 
-    m_private->labelStepTime->setText("0 ms");
-    m_private->labelTotalTime->setText("0 ms");
+    m_private->labelStepTime->setText("0.000");
+    m_private->labelTotalTime->setText("0.000");
 }
 
 bool MainWindow::presetFromFile(const QString &file, bool showError)
@@ -776,12 +818,17 @@ MainWindowPrivate::MainWindowPrivate()
     currentBoard = 0;
 
     shown = false;
+
+    solver = 0;
 }
 
 MainWindowPrivate::~MainWindowPrivate()
 {
     if (!boards.isEmpty())
     {
+        if (solver)
+            delete solver;
+
         foreach (SudokuBoard *board, boards)
             delete board;
         boards.clear();
@@ -857,4 +904,77 @@ int MainWindowPrivate::loadBoards()
     }
 
     return boards.size();
+}
+
+void MainWindowPrivate::updateWidgets()
+{
+    bool enabled = (solver && boxAlgorithm->currentIndex() > 0);
+
+    labelTitleTotalTime->setEnabled(enabled);
+    labelTotalTime->setEnabled(enabled);
+    labelTitleStepTime->setEnabled(enabled);
+    labelStepTime->setEnabled(enabled);
+    buttonNext->setEnabled(enabled);
+    buttonEnd->setEnabled(enabled);
+}
+
+QString MainWindowPrivate::msToString(qint64 ms)
+{
+    if (ms < 1000)
+    {
+        QString str = QString::number(ms, 10);
+        while (str.size() < 3)
+            str = QString("0%1").arg(str);
+        return str.prepend("0.");
+    }
+    else if (ms < 60000)
+    {
+        qint64 m = ms % 1000;
+        qint64 s = (ms - m) / 1000;
+
+        QString str = QString::number(m, 10);
+        while (str.size() < 3)
+            str = QString("0%1").arg(str);
+        return QString("%1.%2").arg(QString::number(s, 10)).arg(str);
+    }
+    else if (ms < 360000)
+    {
+        qint64 m = ms % 1000;
+        qint64 tmp = (ms - m) / 1000;
+        qint64 sec = tmp % 60;
+        qint64 min = (tmp - sec) / 60;
+
+        QString strMS = QString::number(m, 10);
+        while (strMS.size() < 3)
+            strMS = strMS.prepend('0');
+
+        QString strSEC = QString::number(m, 10);
+        if (strSEC.size() == 1)
+            strSEC = strSEC.prepend('0');
+
+        return QString("%1:%2.%3").arg(QString::number(min, 10)).arg(strSEC).arg(strMS);
+    }
+    else
+    {
+        qint64 m = ms % 1000;
+        qint64 tmp = (ms - m) / 1000;
+        qint64 sec = tmp % 60;
+        qint64 tmp2 = (tmp - sec) / 60;
+        qint64 min = tmp2 % 60;
+        qint64 h = (tmp2 - min) / 60;
+
+        QString strMS = QString::number(m, 10);
+        while (strMS.size() < 3)
+            strMS = strMS.prepend('0');
+
+        QString strSEC = QString::number(m, 10);
+        if (strSEC.size() == 1)
+            strSEC = strSEC.prepend('0');
+
+        QString strMIN = QString::number(min, 10);
+        if (strMIN.size() == 1)
+            strMIN = strMIN.prepend('0');
+
+        return QString("%1:%2:%3.%4").arg(QString::number(h, 10)).arg(strMIN).arg(strSEC).arg(strMS);
+    }
 }

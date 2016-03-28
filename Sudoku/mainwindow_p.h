@@ -14,6 +14,7 @@ namespace CIS5603
 
 class GridBoard;
 class SudokuBoard;
+class SudokuSolver;
 
 class MainWindowPrivate
 {
@@ -23,6 +24,10 @@ protected:
     ~MainWindowPrivate();
 
     int loadBoards(); //Return the number of loaded boards, or -1 if any error happens
+
+    void updateWidgets();
+
+    static QString msToString(qint64 ms);
 
     QList<SudokuBoard *> boards;
 
@@ -58,6 +63,8 @@ protected:
 
     QPushButton *buttonNext;
     QPushButton *buttonEnd;
+
+    SudokuSolver *solver;
 };
 
 }

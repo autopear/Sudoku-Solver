@@ -17,39 +17,59 @@ void messageHandler(QtMsgType type, const QMessageLogContext &context, const QSt
     switch (type)
     {
     case QtDebugMsg:
+#ifdef QT_NO_DEBUG
         text = QString("Debug: %1 (%2:%3, %4)\n")
                 .arg(msg)
                 .arg(context.file)
                 .arg(context.line)
                 .arg(context.function);
+#else
+        text = QString("Debug: %1\n").arg(msg);
+#endif
         break;
     case QtInfoMsg:
+#ifdef QT_NO_DEBUG
         text = QString("Info: %1 (%2:%3, %4)\n")
                 .arg(msg)
                 .arg(context.file)
                 .arg(context.line)
                 .arg(context.function);
+#else
+        text = QString("Info: %1\n").arg(msg);
+#endif
         break;
     case QtWarningMsg:
+#ifdef QT_NO_DEBUG
         text = QString("Warning: %1 (%2:%3, %4)\n")
                 .arg(msg)
                 .arg(context.file)
                 .arg(context.line)
                 .arg(context.function);
+#else
+        text = QString("Warning: %1\n").arg(msg);
+#endif
         break;
     case QtCriticalMsg:
+#ifdef QT_NO_DEBUG
         text = QString("Critical: %1 (%2:%3, %4)\n")
                 .arg(msg)
                 .arg(context.file)
                 .arg(context.line)
                 .arg(context.function);
+#else
+        text = QString("Critical: %1\n").arg(msg);
+#endif
         break;
     case QtFatalMsg:
+#ifdef QT_NO_DEBUG
         text = QString("Fatal: %1 (%2:%3, %4)\n")
                 .arg(msg)
                 .arg(context.file)
                 .arg(context.line)
                 .arg(context.function);
+#else
+        text = QString("Fatal: %1\n").arg(msg);
+#endif
         break;
     }
 

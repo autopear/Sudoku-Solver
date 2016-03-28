@@ -14,21 +14,27 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
            mainwindow.cpp \
+           aboutdialog.cpp \
+           abstractsolver.cpp \
            gridboard.cpp \
            gridmodel.cpp \
-           aboutdialog.cpp \
-           sudokuboard.cpp
+           sudokuboard.cpp \
+           sudokusolver.cpp
 
 HEADERS  += mainwindow.h \
             mainwindow_p.h \
             aboutdialog.h \
             aboutdialog_p.h \
+            abstractsolver.h \
+            abstractsolver_p.h \
             gridboard.h \
             gridboard_p.h \
             gridmodel.h \
             gridmodel_p.h \
             sudokuboard.h \
             sudokuboard_p.h \
+            sudokusolver.h \
+            sudokusolver_p.h \
             version.h
 
 mac {

@@ -4,6 +4,7 @@
 //Table widget used for displaying a Sudoku grid board
 
 #include <QColor>
+#include <QList>
 #include <QTableView>
 
 namespace CIS5603
@@ -29,6 +30,9 @@ public:
 
     int value(int row, int column) const;
     int value(const QPoint &pos) const;
+
+    QList<int> availableValues(int row, int column) const;
+    QList<int> availableValues(const QPoint &pos) const;
 
     int rows() const;
     int columns() const;

@@ -73,6 +73,10 @@ private slots:
     //Validate values from user input
     void onValueChanged(int row, int column, int oldValue, int newValue);
 
+    void onProceeded(int value, int row, int column, qint64 stepTime, qint64 totalTime);
+    void onFinished(qint64 totalTime);
+    void onTerminated(qint64 totalTime, const QString &message);
+
 private:
     MainWindowPrivate *m_private;
 };
