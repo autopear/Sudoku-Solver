@@ -31,10 +31,12 @@ public:
     int value(int row, int column) const;
     int value(const QPoint &pos) const;
 
+    //Find all possible values for a given cell
+    //If the cell has a value set already, or the cell is invalid in the grid, an empty list is returned.
     QList<int> availableValues(int row, int column, bool multiThread = true);
     QList<int> availableValues(const QPoint &pos, bool multiThread = true);
 
-    QPoint getBestCell(int *value, bool multiThread = true);
+    QPoint getBestCell(int *value, QMap<QPoint, QList<int> > *values, bool multiThread = true);
 
     int rows() const;
     int columns() const;
@@ -53,11 +55,11 @@ signals:
 
 public slots:
     void setAspectRatio(const QSize &size);
-    inline void setAspectRatio(int w, int h) { setAspectRatio(QSize(w, h)); }
+    void setAspectRatio(int w, int h);
 
     //Set value
     void setValue(int row, int column, int value);
-    inline void setValue(const QPoint &pos, int value) { setValue(pos.x(), pos.y(), value); }
+    void setValue(const QPoint &pos, int value);
 
     //Empty all values
     void clearContents();

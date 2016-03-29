@@ -79,9 +79,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_private->boxAlgorithm = new QComboBox(this);
     m_private->boxAlgorithm->addItem(tr("Select..."));
-    m_private->boxAlgorithm->addItem(tr("Algorithm 1")); //Test
-    m_private->boxAlgorithm->addItem(tr("Algorithm 2")); //Test
-    m_private->boxAlgorithm->addItem(tr("Algorithm 3")); //Test
+    m_private->boxAlgorithm->addItem(tr("Test Algorithm 1")); //Test only, not implemented
+    m_private->boxAlgorithm->addItem(tr("Test Algorithm 2")); //Test only, not implemented
+    m_private->boxAlgorithm->addItem(tr("Test Algorithm 3")); //Test only, not implemented
     connect(m_private->boxAlgorithm, SIGNAL(currentIndexChanged(int)),
             this, SLOT(onAlgorithmSelected(int)));
 

@@ -29,3 +29,22 @@ User can also have preset (initial values) defined for a specified board. The fi
 
 The sdk file is basically a 2-D arrays of integers, with values corresponding to the grid. Undefined (empty) values can be set to empty string or 0. Rows of values must be in individual lines, and values in the same row are separated by comma. The above preset is for grid 9x9. An example output is below:
 <img src="https://github.com/autopear/Sudoku-Solver/blob/master/Bin/Preview_9x9_Presets.png">
+
+
+<b>How to compile</b>
+<ul>	  
+<li><p>Mac OS X Requirements: Xcode (from Mac App Store) and Qt</p></li>
+
+<li><p>Windows Requirements: Visual C++ Compiler and Qt<ul>
+	<li>Visual C++ Compiler is integrated in Visual Studio (including most versions, Ultimate, Pro, Express, etc.).</li>
+	<li>Visual Studio needs to be 2010, 2012, 2013 or 2015.</li></ul></p></li>
+
+<li><p>Qt Installer: <a href="http://www.qt.io/download-open-source/#section-2">http://www.qt.io/download-open-source/#section-2</a></p></li>
+  
+<li><p>What to install<br/>In the Select Components page of the installer, select the following components:<ul>
+<li>Mac OS X: Qt->Qt 5.6->clang 64-bit</li>
+<li>Windows: Qt->Qt 5.6->MSVC 201X, depending on the version of you Visual Studio. You can install both 32 bit and 64 bit versons. But in general 32 bit is enough.</li>
+<li>Qt->Tools->Qt Creator (this is forced selected)</li>
+<li>You can select other components, but they are unnecessary for this project.</li></ul></p></li>
+<li><p>How to compile<br/>Use Qt Creator to open the .pro file, and select a suitable Kit for the project. Then you can build or rebuild the project. Sometimes you need to "Run qmake" before building the project. If you are developing, then choose Debug as build configuration in the Projects tab on the left tool bar. This gives you the ability to track functions and set breakpoints.</li>
+</li></ul>

@@ -6,6 +6,7 @@
 #include "gridmodel.h"
 #include "mainwindow.h"
 #include "sudokuboard.h"
+#include "sudokuboard_p.h"
 #include "gridboard_p.h"
 #include "gridboard.h"
 
@@ -94,7 +95,7 @@ QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
         int rows = m_private->model->rowCount();
         int columns = m_private->model->columnCount();
 
-        QSemaphore *mutex = new QSemaphore(1);
+        QSemaphore *mutex = multiThread ? new QSemaphore(1) : 0;
         QList<int> usedValues;
 
         LineValuesChecker *rowChecker = new LineValuesChecker(row,
@@ -102,13 +103,13 @@ QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
                                                               m_private->model,
                                                               mutex,
                                                               &usedValues,
-                                                              multiThread ? 0 : this);
+                                                              this);
         LineValuesChecker *colChecker = new LineValuesChecker(column,
                                                               false,
                                                               m_private->model,
                                                               mutex,
                                                               &usedValues,
-                                                              multiThread ? 0 : this);
+                                                              this);
 
         QList<BlockValuesChecker *> blockCheckers;
         MainWindow *mw = qobject_cast<MainWindow *>(parentWidget());
@@ -120,7 +121,7 @@ QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
                                                             m_private->model,
                                                             mutex,
                                                             &usedValues,
-                                                            multiThread ? 0 : this));
+                                                            this));
         }
 
         if (multiThread)
@@ -134,6 +135,8 @@ QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
             colChecker->wait();
             foreach (BlockValuesChecker *checker, blockCheckers)
                 checker->wait();
+
+            delete mutex;
         }
         else
         {
@@ -143,7 +146,6 @@ QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
                 checker->check();
         }
 
-        delete mutex;
         delete rowChecker;
         delete colChecker;
         foreach (BlockValuesChecker *checker, blockCheckers)
@@ -167,7 +169,7 @@ QList<int> GridBoard::availableValues(const QPoint &pos, bool multiThread)
     return availableValues(pos.x(), pos.y(), multiThread);
 }
 
-QPoint GridBoard::getBestCell(int *value, bool multiThread)
+QPoint GridBoard::getBestCell(int *value, QMap<QPoint, QList<int> > *values, bool multiThread)
 {
     int rows = m_private->model->rowCount();
     int cols = m_private->model->columnCount();
@@ -178,18 +180,20 @@ QPoint GridBoard::getBestCell(int *value, bool multiThread)
 
     QPoint bestCell(-1, -1);
     int bestValue = 0;
-    QSemaphore *mutex = new QSemaphore(1);
-    QList<BestCellFinder *> finders;
+    QMap<QPoint, QList<int> > bestValues;
     bool useThread = (multiThread && numThreads > 1);
+    QSemaphore *mutex = useThread ? new QSemaphore(1) : 0;
+    QList<BestCellFinder *> finders;
     for (int i=0; i<numThreads; i++)
     {
         BestCellFinder *finder = new BestCellFinder(i,
                                                     &bestCell,
                                                     &bestValue,
+                                                    &bestValues,
                                                     const_cast<GridBoard *>(this),
                                                     mutex,
                                                     multiThread,
-                                                    useThread ? 0 : this);
+                                                    this);
         finders.append(finder);
 
         if (useThread)
@@ -204,12 +208,15 @@ QPoint GridBoard::getBestCell(int *value, bool multiThread)
             finder->wait();
     }
 
-    delete mutex;
+    if (mutex)
+        delete mutex;
     foreach (BestCellFinder *finder, finders)
         delete finder;
 
     if (value)
         *value = bestValue;
+    if (values)
+        *values = bestValues;
 
     return bestCell;
 }
@@ -217,6 +224,11 @@ QPoint GridBoard::getBestCell(int *value, bool multiThread)
 void GridBoard::setValue(int row, int column, int value)
 {
     m_private->model->setValue(row, column, value);
+}
+
+void GridBoard::setValue(const QPoint &pos, int value)
+{
+    setValue(pos.x(), pos.y(), value);
 }
 
 int GridBoard::rows() const
@@ -255,6 +267,11 @@ void GridBoard::setAspectRatio(const QSize &size)
 {
     if (size.isValid() && (size.width() * m_private->size.height() != size.height() * m_private->size.width()))
         m_private->size = size;
+}
+
+void GridBoard::setAspectRatio(int w, int h)
+{
+    setAspectRatio(QSize(w, h));
 }
 
 void GridBoard::setHighlight(const QPoint &p1, const QPoint &p2)
@@ -415,10 +432,12 @@ void LineValuesChecker::check()
             int v = m_model->value(m_line, i);
             if (v > 0)
             {
-                m_mutex->acquire();
+                if (m_mutex)
+                    m_mutex->acquire();
                 if (!m_values->contains(v))
                     m_values->append(v);
-                m_mutex->release();
+                if (m_mutex)
+                    m_mutex->release();
             }
         }
     }
@@ -432,10 +451,12 @@ void LineValuesChecker::check()
             int v = m_model->value(i, m_line);
             if (v > 0)
             {
-                m_mutex->acquire();
+                if (m_mutex)
+                    m_mutex->acquire();
                 if (!m_values->contains(v))
                     m_values->append(v);
-                m_mutex->release();
+                if (m_mutex)
+                    m_mutex->release();
             }
         }
     }
@@ -467,10 +488,12 @@ void BlockValuesChecker::check()
         int v = m_model->value(p.x(), p.y());
         if (v > 0)
         {
-            m_mutex->acquire();
+            if (m_mutex)
+                m_mutex->acquire();
             if (!m_values->contains(v))
                 m_values->append(v);
-            m_mutex->release();
+            if (m_mutex)
+                m_mutex->release();
         }
     }
 }
@@ -478,6 +501,7 @@ void BlockValuesChecker::check()
 BestCellFinder::BestCellFinder(int index,
                                QPoint *cell,
                                int *value,
+                               QMap<QPoint, QList<int> > *values,
                                GridBoard *board,
                                QSemaphore *mutex,
                                bool useThread,
@@ -486,6 +510,7 @@ BestCellFinder::BestCellFinder(int index,
     m_index(index),
     m_cell(cell),
     m_value(value),
+    m_values(values),
     m_board(board),
     m_mutex(mutex),
     m_useThread(useThread)
@@ -502,11 +527,13 @@ void BestCellFinder::search()
     {
         for (int j=0; j<cols; j++)
         {
-            m_mutex->acquire();
+            if (m_mutex)
+                m_mutex->acquire();
             if (m_cell->x() > -1 && m_cell->y() > -1)
             {
                 //Terminate, some thread has already found the best cell
-                m_mutex->release();
+                if (m_mutex)
+                    m_mutex->release();
                 return;
             }
 
@@ -517,11 +544,21 @@ void BestCellFinder::search()
                 m_cell->setY(j);
                 if (m_value)
                     *m_value = availableValues.first();
-                m_mutex->release();
+                if (m_mutex)
+                    m_mutex->release();
                 return;
             }
+            else if (availableValues.size() > 1)
+            {
+                if (m_values)
+                    m_values->insert(QPoint(i, j), availableValues);
+            }
+            else
+            {
+            }
 
-            m_mutex->release();
+            if (m_mutex)
+                m_mutex->release();
         }
     }
 }

@@ -77,7 +77,7 @@ void AbstractSolver::run()
             if (computeNextValue(&v, &r, &c))
                 emit computed(v, r, c);
             else
-                emit terminated(tr("The programm cannot continue."));
+                return;
         }
         else
             emit terminated(tr("The Sudoku puzzle is already solved."));
@@ -94,10 +94,7 @@ void AbstractSolver::run()
                 if (computeNextValue(&v, &r, &c))
                     emit computed(v, r, c);
                 else
-                {
-                    emit terminated(tr("The programm cannot continue."));
-                    break;
-                }
+                    return;
             }
         }
         else
