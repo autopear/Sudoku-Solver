@@ -25,9 +25,13 @@
 
 using namespace CIS5603;
 
+static MainWindow *instance = 0;
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
 {
+    instance = this;
+
     //This part of code can generate a board quickly.
     /*
     SudokuBoard *bb = new SudokuBoard(this);
@@ -69,8 +73,13 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_private->boxBoard = new QComboBox(this);
     m_private->boxBoard->addItem(tr("Select..."));
+    m_private->boxBoard->setItemData(m_private->boxBoard->count() - 1, tr("Select..."), Qt::ToolTipRole);
     foreach (SudokuBoard *board, m_private->boards)
-        m_private->boxBoard->addItem(QObject::tr("%1 (%2x%3)").arg(board->name()).arg(QString::number(board->rows(), 10)).arg(QString::number(board->columns(), 10)));
+    {
+        QString text = tr("%1 (%2x%3)").arg(board->name()).arg(QString::number(board->rows(), 10)).arg(QString::number(board->columns(), 10));
+        m_private->boxBoard->addItem(text);
+        m_private->boxBoard->setItemData(m_private->boxBoard->count() - 1, text, Qt::ToolTipRole);
+    }
     m_private->boxBoard->setCurrentIndex(0);
     connect(m_private->boxBoard, SIGNAL(currentIndexChanged(int)),
             this, SLOT(onBoardSelected(int)));
@@ -79,9 +88,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_private->boxAlgorithm = new QComboBox(this);
     m_private->boxAlgorithm->addItem(tr("Select..."));
-    m_private->boxAlgorithm->addItem(tr("Test Algorithm 1")); //Test only, not implemented
-    m_private->boxAlgorithm->addItem(tr("Test Algorithm 2")); //Test only, not implemented
-    m_private->boxAlgorithm->addItem(tr("Test Algorithm 3")); //Test only, not implemented
+    m_private->boxAlgorithm->setItemData(m_private->boxAlgorithm->count() - 1, tr("Select..."), Qt::ToolTipRole);
+    m_private->boxAlgorithm->addItem(tr("Heuristic Search"));
+    m_private->boxAlgorithm->setItemData(m_private->boxAlgorithm->count() - 1, tr("Heuristic Search"), Qt::ToolTipRole);
     connect(m_private->boxAlgorithm, SIGNAL(currentIndexChanged(int)),
             this, SLOT(onAlgorithmSelected(int)));
 
@@ -212,12 +221,33 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    instance = 0;
     delete m_private;
+}
+
+MainWindow *MainWindow::sharedInstance()
+{
+    return instance;
+}
+
+MainWindow *sharedInstance()
+{
+    return instance;
 }
 
 SudokuBoard *MainWindow::currentBoard()
 {
     return m_private->currentBoard;
+}
+
+GridBoard *MainWindow::gridBoard()
+{
+    return m_private->boardWidget;
+}
+
+bool MainWindow::multithreadingEnabled() const
+{
+    return m_private->checkMultiThread->isChecked();
 }
 
 void MainWindow::onBoardSelected(int index)
@@ -256,13 +286,15 @@ void MainWindow::onBoardSelected(int index)
         if (m_private->solver)
             delete m_private->solver;
 
-        m_private->solver = new SudokuSolver(m_private->boardWidget, board, this);
+        m_private->solver = new SudokuSolver(this);
         connect(m_private->solver, SIGNAL(proceeded(int,int,int,qint64,qint64)),
                 this, SLOT(onProceeded(int,int,int,qint64,qint64)));
         connect(m_private->solver, SIGNAL(terminated(qint64,QString)),
                 this, SLOT(onTerminated(qint64,QString)));
         connect(m_private->solver, SIGNAL(finished(qint64)),
                 this, SLOT(onFinished(qint64)));
+
+        onAlgorithmSelected(m_private->boxAlgorithm->currentIndex());
 
         m_private->buttonInitialize->setEnabled(true);
         m_private->buttonPreset->setEnabled(true);
@@ -276,6 +308,8 @@ void MainWindow::onBoardSelected(int index)
             delete m_private->solver;
             m_private->solver = 0;
         }
+
+        onAlgorithmSelected(m_private->boxAlgorithm->currentIndex());
 
         m_private->buttonInitialize->setEnabled(false);
         m_private->buttonPreset->setEnabled(false);
@@ -367,6 +401,8 @@ void MainWindow::onProceeded(int value, int row, int column, qint64 stepTime, qi
 
     m_private->boardWidget->setHighlight(-1, -1, -1, -1);
 
+    m_private->boardWidget->setValue(row, column, value);
+
     m_private->labelStepTime->setText(MainWindowPrivate::msToString(stepTime));
     m_private->labelTotalTime->setText(MainWindowPrivate::msToString(totalTime));
 }
@@ -391,8 +427,8 @@ void MainWindow::loadPreset()
     QString defaultFile = m_private->lastPreset;
     if (defaultFile.isEmpty() || !QFile::exists(defaultFile))
     {
-#ifdef Q_OS_MAC
         QDir current(qApp->applicationDirPath());
+#ifdef Q_OS_MAC
         current.cdUp();
         current.cdUp();
         current.cdUp();

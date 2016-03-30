@@ -4,18 +4,12 @@
 namespace CIS5603
 {
 
-class GridBoard;
-class SudokuBoard;
-
 class AbstractSolverPrivate
 {
     friend class AbstractSolver;
 protected:
     AbstractSolverPrivate();
     ~AbstractSolverPrivate();
-
-    GridBoard *table;
-    SudokuBoard *board;
 
     bool step;
     bool stopped;

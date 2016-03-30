@@ -40,13 +40,13 @@ public:
 
     //Return the block that the cell belongs to, or empty block if the cell does not belong to any block
     QList<QPolygon> findBlocks(const QPoint &pos);
-    inline QList<QPolygon> findBlocks(int row, int column) { return findBlocks(QPoint(row, column)); }
+    QList<QPolygon> findBlocks(int row, int column);
 
     //Background color for blocks, this is optional
     QList<QColor> colors() const;
 
     QColor color(const QPoint &pos) const;
-    inline QColor color(int row, int column) const { return color(QPoint(row, column)); }
+    QColor color(int row, int column) const;
 
     bool saveToFile(const QString &file, QString *error = 0);
 

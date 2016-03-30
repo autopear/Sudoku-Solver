@@ -9,8 +9,6 @@ namespace CIS5603
 {
 
 class AbstractSolver;
-class GridBoard;
-class SudokuBoard;
 
 class SudokuSolverPrivate
 {
@@ -19,8 +17,6 @@ protected:
     SudokuSolverPrivate();
     ~SudokuSolverPrivate();
 
-    GridBoard *table;
-    SudokuBoard *board;
     AbstractSolver *solver;
 
     QElapsedTimer *timer;

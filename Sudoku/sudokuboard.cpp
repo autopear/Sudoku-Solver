@@ -118,9 +118,19 @@ QColor SudokuBoard::color(const QPoint &pos) const
     return m_private->colorMap.value(pos, QColor());
 }
 
+QColor SudokuBoard::color(int row, int column) const
+{
+    return color(QPoint(row, column));
+}
+
 QList<QPolygon> SudokuBoard::findBlocks(const QPoint &pos)
 {
     return m_private->blockMap.value(pos, QList<QPolygon>());
+}
+
+QList<QPolygon> SudokuBoard::findBlocks(int row, int column)
+{
+    return findBlocks(QPoint(row, column));
 }
 
 static QString stringFromPoint(const QPoint &p)

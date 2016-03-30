@@ -16,6 +16,7 @@ SOURCES += main.cpp\
            mainwindow.cpp \
            aboutdialog.cpp \
            abstractsolver.cpp \
+           heuristicsearchsolver.cpp \
            gridboard.cpp \
            gridmodel.cpp \
            sudokuboard.cpp \
@@ -27,6 +28,7 @@ HEADERS  += mainwindow.h \
             aboutdialog_p.h \
             abstractsolver.h \
             abstractsolver_p.h \
+            heuristicsearchsolver.h \
             gridboard.h \
             gridboard_p.h \
             gridmodel.h \

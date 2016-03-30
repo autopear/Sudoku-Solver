@@ -6,15 +6,13 @@
 namespace CIS5603
 {
 
-class GridBoard;
-class SudokuBoard;
 class SudokuSolverPrivate;
 
 class SudokuSolver : public QObject
 {
     Q_OBJECT
 public:
-    explicit SudokuSolver(GridBoard *table, SudokuBoard *board, QObject *parent = 0);
+    explicit SudokuSolver(QObject *parent = 0);
     ~SudokuSolver();
 
     QString algorithm() const;

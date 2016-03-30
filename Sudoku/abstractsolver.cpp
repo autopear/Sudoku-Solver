@@ -1,16 +1,15 @@
 #include "gridboard.h"
+#include "mainwindow.h"
 #include "sudokuboard.h"
 #include "abstractsolver_p.h"
 #include "abstractsolver.h"
 
 using namespace CIS5603;
 
-AbstractSolver::AbstractSolver(GridBoard *table, SudokuBoard *board, QObject *parent) :
+AbstractSolver::AbstractSolver(QObject *parent) :
     QThread(parent),
     m_private(new AbstractSolverPrivate())
 {
-    m_private->table = table;
-    m_private->board = board;
 }
 
 AbstractSolver::~AbstractSolver()
@@ -30,16 +29,18 @@ void AbstractSolver::setStepByStep(bool enabled)
 
 bool AbstractSolver::canCompute() const
 {
-    if (m_private->table && m_private->board)
+    GridBoard *table = MainWindow::sharedInstance()->gridBoard();
+
+    if (table)
     {
-        int rows = m_private->table->rows();
-        int columns = m_private->table->columns();
+        int rows = table->rows();
+        int columns = table->columns();
 
         for (int i=0; i<rows; i++)
         {
             for (int j=0; j<columns; j++)
             {
-                if (m_private->table->value(i, j) == 0)
+                if (table->value(i, j) == 0)
                     return true;
             }
         }
@@ -48,7 +49,7 @@ bool AbstractSolver::canCompute() const
     return false;
 }
 
-bool AbstractSolver::computeNextValue(int *value, int *row, int *column)
+int AbstractSolver::computeNextValue(int *value, int *row, int *column)
 {
     if (value)
         *value = 0;
@@ -57,7 +58,9 @@ bool AbstractSolver::computeNextValue(int *value, int *row, int *column)
     if (column)
         *column = -1;
 
-    return false;
+    emit interrupted(tr("The algorithm is not implemented."));
+
+    return -1;
 }
 
 void AbstractSolver::stop()
@@ -71,41 +74,37 @@ void AbstractSolver::run()
 
     if (m_private->step)
     {
-        if (canCompute())
-        {
-            int v, r, c;
-            if (computeNextValue(&v, &r, &c))
-                emit computed(v, r, c);
-            else
-                return;
-        }
+        int v, r, c;
+        int res = computeNextValue(&v, &r, &c);
+        if (res == 1)
+            emit computed(v, r, c);
+        else if (res == 0)
+                emit interrupted(tr("The Sudoku puzzle is solved."));
         else
-            emit terminated(tr("The Sudoku puzzle is already solved."));
+            return;
     }
     else
     {
         m_private->stopped = false;
 
-        if (canCompute())
+        while (!m_private->stopped)
         {
-            while (!m_private->stopped && canCompute())
-            {
-                int v, r, c;
-                if (computeNextValue(&v, &r, &c))
-                    emit computed(v, r, c);
-                else
-                    return;
-            }
+            int v, r, c;
+            int res = computeNextValue(&v, &r, &c);
+            if (res == 1)
+                emit computed(v, r, c);
+            else if (res == 0)
+                break;
+            else
+                return;
         }
-        else
-            emit terminated(tr("The Sudoku puzzle is already solved."));
+
+        emit interrupted(tr("The Sudoku puzzle is solved."));
     }
 }
 
 AbstractSolverPrivate::AbstractSolverPrivate()
 {
-    table = 0;
-    board = 0;
     step = true;
     stopped = false;
 }

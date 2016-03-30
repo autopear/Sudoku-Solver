@@ -1,19 +1,17 @@
 #include <QElapsedTimer>
-#include "abstractsolver.h"
+#include "heuristicsearchsolver.h"
 #include "gridboard.h"
+#include "mainwindow.h"
 #include "sudokuboard.h"
 #include "sudokusolver_p.h"
 #include "sudokusolver.h"
 
 using namespace CIS5603;
 
-SudokuSolver::SudokuSolver(GridBoard *table, SudokuBoard *board, QObject *parent) :
+SudokuSolver::SudokuSolver(QObject *parent) :
     QObject(parent),
     m_private(new SudokuSolverPrivate())
 {
-    m_private->table = table;
-    m_private->board = board;
-
     m_private->timer = new QElapsedTimer();
 }
 
@@ -81,13 +79,18 @@ void SudokuSolver::setAlgorithm(const QString &algorithm)
             {
                 delete m_private->solver;
 
-                m_private->solver = new AbstractSolver(m_private->table, m_private->board, this); //Override this line
-                connect(m_private->solver, SIGNAL(computed(int,int,int)),
-                        this, SLOT(onComputed(int,int,int)));
-                connect(m_private->solver, SIGNAL(terminated(QString)),
-                        this, SLOT(onTerminated(QString)));
-                connect(m_private->solver, SIGNAL(finished()),
-                        this, SLOT(onFinished()));
+                if (algorithm.compare(tr("Heuristic Search")) == 0)
+                {
+                    m_private->solver = new HeuristicSearchSolver(0);
+                    connect(m_private->solver, SIGNAL(computed(int,int,int)),
+                            this, SLOT(onComputed(int,int,int)));
+                    connect(m_private->solver, SIGNAL(interrupted(QString)),
+                            this, SLOT(onTerminated(QString)));
+                    connect(m_private->solver, SIGNAL(finished()),
+                            this, SLOT(onFinished()));
+                }
+                else
+                    m_private->solver = 0;
             }
         }
     }
@@ -95,13 +98,18 @@ void SudokuSolver::setAlgorithm(const QString &algorithm)
     {
         if (!algorithm.isEmpty())
         {
-            m_private->solver = new AbstractSolver(m_private->table, m_private->board, this); //Override this line
-            connect(m_private->solver, SIGNAL(computed(int,int,int)),
-                    this, SLOT(onComputed(int,int,int)));
-            connect(m_private->solver, SIGNAL(terminated(QString)),
-                    this, SLOT(onTerminated(QString)));
-            connect(m_private->solver, SIGNAL(finished()),
-                    this, SLOT(onFinished()));
+            if (algorithm.compare(tr("Heuristic Search")) == 0)
+            {
+                m_private->solver = new HeuristicSearchSolver(0);
+                connect(m_private->solver, SIGNAL(computed(int,int,int)),
+                        this, SLOT(onComputed(int,int,int)));
+                connect(m_private->solver, SIGNAL(interrupted(QString)),
+                        this, SLOT(onTerminated(QString)));
+                connect(m_private->solver, SIGNAL(finished()),
+                        this, SLOT(onFinished()));
+            }
+            else
+                m_private->solver = 0;
         }
     }
 }
@@ -177,8 +185,6 @@ void SudokuSolver::onFinished()
 
 SudokuSolverPrivate::SudokuSolverPrivate()
 {
-    table = 0;
-    board = 0;
     solver = 0;
     timer = 0;
 

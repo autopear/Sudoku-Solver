@@ -103,16 +103,18 @@ QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
                                                               m_private->model,
                                                               mutex,
                                                               &usedValues,
-                                                              this);
+                                                              0);
         LineValuesChecker *colChecker = new LineValuesChecker(column,
                                                               false,
                                                               m_private->model,
                                                               mutex,
                                                               &usedValues,
-                                                              this);
+                                                              0);
 
         QList<BlockValuesChecker *> blockCheckers;
-        MainWindow *mw = qobject_cast<MainWindow *>(parentWidget());
+        MainWindow *mw = qobject_cast<MainWindow *>(parentWidget()->parentWidget());
+        Q_ASSERT(mw);
+        Q_ASSERT(mw->currentBoard());
         if (mw && mw->currentBoard())
         {
             QList<QPolygon> blocks = mw->currentBoard()->findBlocks(row, column);
@@ -121,7 +123,7 @@ QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
                                                             m_private->model,
                                                             mutex,
                                                             &usedValues,
-                                                            this));
+                                                            0));
         }
 
         if (multiThread)
@@ -190,10 +192,9 @@ QPoint GridBoard::getBestCell(int *value, QMap<QPoint, QList<int> > *values, boo
                                                     &bestCell,
                                                     &bestValue,
                                                     &bestValues,
-                                                    const_cast<GridBoard *>(this),
                                                     mutex,
                                                     multiThread,
-                                                    this);
+                                                    0);
         finders.append(finder);
 
         if (useThread)
@@ -502,7 +503,6 @@ BestCellFinder::BestCellFinder(int index,
                                QPoint *cell,
                                int *value,
                                QMap<QPoint, QList<int> > *values,
-                               GridBoard *board,
                                QSemaphore *mutex,
                                bool useThread,
                                QObject *parent) :
@@ -511,7 +511,6 @@ BestCellFinder::BestCellFinder(int index,
     m_cell(cell),
     m_value(value),
     m_values(values),
-    m_board(board),
     m_mutex(mutex),
     m_useThread(useThread)
 {
@@ -519,8 +518,9 @@ BestCellFinder::BestCellFinder(int index,
 
 void BestCellFinder::search()
 {
-    int rows = m_board->rows();
-    int cols = m_board->columns();
+    GridBoard *board = MainWindow::sharedInstance()->gridBoard();
+    int rows = board->rows();
+    int cols = board->columns();
     int max = qMin(m_index * 2 + 2, rows);
 
     for (int i=m_index*2; i<max; i++)
@@ -537,7 +537,7 @@ void BestCellFinder::search()
                 return;
             }
 
-            QList<int> availableValues = m_board->availableValues(i, j, m_useThread);
+            QList<int> availableValues = board->availableValues(i, j, m_useThread);
             if (availableValues.size() == 1)
             {
                 m_cell->setX(i);

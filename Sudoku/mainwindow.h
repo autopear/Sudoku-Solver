@@ -7,6 +7,7 @@
 namespace CIS5603
 {
 
+class GridBoard;
 class MainWindowPrivate;
 class SudokuBoard;
 
@@ -17,7 +18,13 @@ public:
     MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+    static MainWindow *sharedInstance();
+
     SudokuBoard *currentBoard();
+
+    GridBoard *gridBoard();
+
+    bool multithreadingEnabled() const;
 
 public slots:
     //Reset all values to empty (undefined)

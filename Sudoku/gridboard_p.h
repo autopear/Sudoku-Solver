@@ -91,7 +91,6 @@ public:
                             QPoint *cell,
                             int *value,
                             QMap<QPoint, QList<int> > *values,
-                            GridBoard *board,
                             QSemaphore *mutex,
                             bool useThread,
                             QObject *parent = 0);
@@ -108,7 +107,6 @@ private:
     QPoint *m_cell;
     int *m_value;
     QMap<QPoint, QList<int> > *m_values;
-    GridBoard *m_board;
     QSemaphore *m_mutex;
     bool m_useThread;
 };
