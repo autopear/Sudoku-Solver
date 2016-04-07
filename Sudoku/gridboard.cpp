@@ -59,6 +59,16 @@ GridModel *GridBoard::girdModel()
     return m_private->model;
 }
 
+int **GridBoard::gridValues() const
+{
+    return m_private->model->gridValues();
+}
+
+int **GridBoard::createValuesCopy(int *rows, int *columns)
+{
+    return m_private->model->createValuesCopy(rows, columns);
+}
+
 QSize GridBoard::aspectRatio() const
 {
     return m_private->size;
@@ -84,43 +94,46 @@ int GridBoard::value(const QPoint &pos) const
     return m_private->model->value(pos.y(), pos.x());
 }
 
-QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
+QList<int> GridBoard::availableValues(int **gridValues, SudokuBoard *board, int row, int column, bool multiThread)
 {
-    if (row > -1 && row < m_private->model->rowCount() && column > -1 && column < m_private->model->columnCount())
+    int rows = board->rows();
+    int columns = board->columns();
+
+    if (row > -1 && row < rows && column > -1 && column < columns)
     {
-        int currentValue = m_private->model->value(row, column);
+        int currentValue = gridValues[row][column];
         if (currentValue > 0)
             return QList<int>(); //Already defined
-
-        int rows = m_private->model->rowCount();
-        int columns = m_private->model->columnCount();
 
         QSemaphore *mutex = multiThread ? new QSemaphore(1) : 0;
         QList<int> usedValues;
 
         LineValuesChecker *rowChecker = new LineValuesChecker(row,
                                                               true,
-                                                              m_private->model,
+                                                              gridValues,
+                                                              rows,
+                                                              columns,
                                                               mutex,
                                                               &usedValues,
                                                               0);
         LineValuesChecker *colChecker = new LineValuesChecker(column,
                                                               false,
-                                                              m_private->model,
+                                                              gridValues,
+                                                              rows,
+                                                              columns,
                                                               mutex,
                                                               &usedValues,
                                                               0);
 
         QList<BlockValuesChecker *> blockCheckers;
-        MainWindow *mw = qobject_cast<MainWindow *>(parentWidget()->parentWidget());
-        Q_ASSERT(mw);
-        Q_ASSERT(mw->currentBoard());
-        if (mw && mw->currentBoard())
+        if (board)
         {
-            QList<QPolygon> blocks = mw->currentBoard()->findBlocks(row, column);
+            QList<QPolygon> blocks = board->findBlocks(row, column);
             foreach (QPolygon block, blocks)
                 blockCheckers.append(new BlockValuesChecker(block,
-                                                            m_private->model,
+                                                            gridValues,
+                                                            rows,
+                                                            columns,
                                                             mutex,
                                                             &usedValues,
                                                             0));
@@ -164,6 +177,16 @@ QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
     }
 
     return QList<int>();
+
+}
+
+QList<int> GridBoard::availableValues(int row, int column, bool multiThread)
+{
+    MainWindow *mw = qobject_cast<MainWindow *>(parentWidget()->parentWidget());
+    if (mw)
+        return availableValues(m_private->model->gridValues(), mw->currentBoard(), row, column, multiThread);
+    else
+        return QList<int>();
 }
 
 QList<int> GridBoard::availableValues(const QPoint &pos, bool multiThread)
@@ -171,10 +194,15 @@ QList<int> GridBoard::availableValues(const QPoint &pos, bool multiThread)
     return availableValues(pos.x(), pos.y(), multiThread);
 }
 
-QPoint GridBoard::getBestCell(int *value, QMap<QPoint, QList<int> > *values, bool multiThread)
+QPoint GridBoard::getBestCell(int **gridValues, SudokuBoard *board, int *value, QMap<QPoint, QList<int> > *values, bool multiThread)
 {
-    int rows = m_private->model->rowCount();
-    int cols = m_private->model->columnCount();
+    if (value)
+        *value = 0;
+    if (values)
+        values->clear();
+
+    int rows = board->rows();
+    int cols = board->columns();
     if (rows < 1 || cols < 1)
         return QPoint(-1, -1);
 
@@ -188,7 +216,9 @@ QPoint GridBoard::getBestCell(int *value, QMap<QPoint, QList<int> > *values, boo
     QList<BestCellFinder *> finders;
     for (int i=0; i<numThreads; i++)
     {
-        BestCellFinder *finder = new BestCellFinder(i,
+        BestCellFinder *finder = new BestCellFinder(gridValues,
+                                                    board,
+                                                    i,
                                                     &bestCell,
                                                     &bestValue,
                                                     &bestValues,
@@ -220,6 +250,21 @@ QPoint GridBoard::getBestCell(int *value, QMap<QPoint, QList<int> > *values, boo
         *values = bestValues;
 
     return bestCell;
+}
+
+QPoint GridBoard::getBestCell(int *value, QMap<QPoint, QList<int> > *values, bool multiThread)
+{
+    MainWindow *mw = qobject_cast<MainWindow *>(parentWidget()->parentWidget());
+    if (mw)
+        return getBestCell(m_private->model->gridValues(), mw->currentBoard(), value, values, multiThread);
+    else
+    {
+        if (value)
+            *value = 0;
+        if (values)
+            values->clear();
+        return QPoint(-1, -1);
+    }
 }
 
 void GridBoard::setValue(int row, int column, int value)
@@ -399,14 +444,18 @@ void GridBoardPrivate::adjustFont()
 
 LineValuesChecker::LineValuesChecker(int line,
                                      bool isRow,
-                                     GridModel *model,
+                                     int **gridValues,
+                                     int rows,
+                                     int columns,
                                      QSemaphore *mutex,
                                      QList<int> *usedValues,
                                      QObject *parent) :
     QThread(parent),
     m_line(line),
     m_isRow(isRow),
-    m_model(model),
+    m_gridValues(gridValues),
+    m_rows(rows),
+    m_columns(columns),
     m_mutex(mutex),
     m_values(usedValues)
 {
@@ -414,23 +463,17 @@ LineValuesChecker::LineValuesChecker(int line,
 
 void LineValuesChecker::check()
 {
-    if (!m_model || m_line < 0)
-        return;
-
-    int rows = m_model->rowCount();
-    int cols = m_model->columnCount();
-
-    if (rows < 1 || cols < 1)
+    if (!m_gridValues || m_line < 0 || m_rows < 1 || m_columns < 1)
         return;
 
     if (m_isRow)
     {
-        if (m_line >= rows)
+        if (m_line >= m_rows)
             return;
 
-        for (int i=0; i<cols; i++)
+        for (int i=0; i<m_columns; i++)
         {
-            int v = m_model->value(m_line, i);
+            int v = m_gridValues[m_line][i];
             if (v > 0)
             {
                 if (m_mutex)
@@ -444,12 +487,12 @@ void LineValuesChecker::check()
     }
     else
     {
-        if (m_line >= cols)
+        if (m_line >= m_columns)
             return;
 
-        for (int i=0; i<rows; i++)
+        for (int i=0; i<m_rows; i++)
         {
-            int v = m_model->value(i, m_line);
+            int v = m_gridValues[i][m_line];
             if (v > 0)
             {
                 if (m_mutex)
@@ -464,13 +507,17 @@ void LineValuesChecker::check()
 }
 
 BlockValuesChecker::BlockValuesChecker(const QPolygon &block,
-                                       GridModel *model,
+                                       int **gridValues,
+                                       int rows,
+                                       int columns,
                                        QSemaphore *mutex,
                                        QList<int> *usedValues,
                                        QObject *parent) :
     QThread(parent),
     m_block(block),
-    m_model(model),
+    m_gridValues(gridValues),
+    m_rows(rows),
+    m_columns(columns),
     m_mutex(mutex),
     m_values(usedValues)
 {
@@ -478,15 +525,15 @@ BlockValuesChecker::BlockValuesChecker(const QPolygon &block,
 
 void BlockValuesChecker::check()
 {
-    if (!m_model)
+    if (!m_gridValues)
         return;
 
-    if (m_model->rowCount() < 1 || m_model->columnCount() < 1)
+    if (m_rows < 1 || m_columns < 1)
         return;
 
     foreach (QPoint p, m_block)
     {
-        int v = m_model->value(p.x(), p.y());
+        int v = m_gridValues[p.x()][p.y()];
         if (v > 0)
         {
             if (m_mutex)
@@ -499,7 +546,9 @@ void BlockValuesChecker::check()
     }
 }
 
-BestCellFinder::BestCellFinder(int index,
+BestCellFinder::BestCellFinder(int **gridValues,
+                               SudokuBoard *board,
+                               int index,
                                QPoint *cell,
                                int *value,
                                QMap<QPoint, QList<int> > *values,
@@ -507,6 +556,8 @@ BestCellFinder::BestCellFinder(int index,
                                bool useThread,
                                QObject *parent) :
     QThread(parent),
+    m_gridValues(gridValues),
+    m_board(board),
     m_index(index),
     m_cell(cell),
     m_value(value),
@@ -518,14 +569,11 @@ BestCellFinder::BestCellFinder(int index,
 
 void BestCellFinder::search()
 {
-    GridBoard *board = MainWindow::sharedInstance()->gridBoard();
-    int rows = board->rows();
-    int cols = board->columns();
-    int max = qMin(m_index * 2 + 2, rows);
+    int max = qMin(m_index * 2 + 2, m_board->rows());
 
     for (int i=m_index*2; i<max; i++)
     {
-        for (int j=0; j<cols; j++)
+        for (int j=0; j<m_board->columns(); j++)
         {
             if (m_mutex)
                 m_mutex->acquire();
@@ -537,7 +585,7 @@ void BestCellFinder::search()
                 return;
             }
 
-            QList<int> availableValues = board->availableValues(i, j, m_useThread);
+            QList<int> availableValues = GridBoard::availableValues(m_gridValues, m_board, i, j, m_useThread);
             if (availableValues.size() == 1)
             {
                 m_cell->setX(i);

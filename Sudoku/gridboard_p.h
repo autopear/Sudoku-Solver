@@ -39,7 +39,9 @@ class LineValuesChecker : public QThread
 public:
     explicit LineValuesChecker(int line,
                                bool isRow,
-                               GridModel *model,
+                               int **gridValues,
+                               int rows,
+                               int columns,
                                QSemaphore *mutex,
                                QList<int> *usedValues,
                                QObject *parent = 0);
@@ -54,7 +56,9 @@ protected:
 private:
     int m_line;
     bool m_isRow;
-    GridModel *m_model;
+    int **m_gridValues;
+    int m_rows;
+    int m_columns;
     QSemaphore *m_mutex;
     QList<int> *m_values;
 };
@@ -64,7 +68,9 @@ class BlockValuesChecker : public QThread
     Q_OBJECT
 public:
     explicit BlockValuesChecker(const QPolygon &block,
-                                GridModel *model,
+                                int **gridValues,
+                                int rows,
+                                int columns,
                                 QSemaphore *mutex,
                                 QList<int> *usedValues,
                                 QObject *parent = 0);
@@ -78,7 +84,9 @@ protected:
 
 private:
     QPolygon m_block;
-    GridModel *m_model;
+    int **m_gridValues;
+    int m_rows;
+    int m_columns;
     QSemaphore *m_mutex;
     QList<int> *m_values;
 };
@@ -87,7 +95,9 @@ class BestCellFinder : public QThread
 {
     Q_OBJECT
 public:
-    explicit BestCellFinder(int index,
+    explicit BestCellFinder(int **gridValues,
+                            SudokuBoard *board,
+                            int index,
                             QPoint *cell,
                             int *value,
                             QMap<QPoint, QList<int> > *values,
@@ -103,6 +113,8 @@ protected:
     void run() { search(); }
 
 private:
+    int **m_gridValues;
+    SudokuBoard *m_board;
     int m_index;
     QPoint *m_cell;
     int *m_value;

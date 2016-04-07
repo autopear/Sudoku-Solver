@@ -12,6 +12,7 @@ namespace CIS5603
 
 class GridBoardPrivate;
 class GridModel;
+class SudokuBoard;
 
 class GridBoard : public QTableView
 {
@@ -21,6 +22,9 @@ public:
     ~GridBoard();
 
     GridModel *girdModel();
+
+    int **gridValues() const; //Must mot free
+    int **createValuesCopy(int *rows, int *columns); //Must free after use
 
     QSize aspectRatio() const;
 
@@ -33,9 +37,11 @@ public:
 
     //Find all possible values for a given cell
     //If the cell has a value set already, or the cell is invalid in the grid, an empty list is returned.
+    static QList<int> availableValues(int **gridValues, SudokuBoard *board, int row, int column, bool multiThread = true);
     QList<int> availableValues(int row, int column, bool multiThread = true);
     QList<int> availableValues(const QPoint &pos, bool multiThread = true);
 
+    static QPoint getBestCell(int **gridValues, SudokuBoard *board, int *value, QMap<QPoint, QList<int> > *values, bool multiThread = true);
     QPoint getBestCell(int *value, QMap<QPoint, QList<int> > *values, bool multiThread = true);
 
     int rows() const;

@@ -17,6 +17,38 @@ GridModel::~GridModel()
     delete m_private;
 }
 
+int **GridModel::gridValues() const
+{
+    return m_private->values;
+}
+
+int **GridModel::createValuesCopy(int *rows, int *columns)
+{
+    if (!m_private->values)
+    {
+        if (rows)
+            *rows = 0;
+        if (columns)
+            *columns = 0;
+        return 0;
+    }
+
+    int **values = (int **)malloc(sizeof(int *) * m_private->rows);
+    for (int i=0; i<m_private->rows; i++)
+    {
+        int *r = (int *)malloc(sizeof(int) * m_private->columns);
+        for (int j=0; j<m_private->columns; j++)
+            r[j] = m_private->values[i][j];
+        values[i] = r;
+    }
+
+    if (rows)
+        *rows = m_private->rows;
+    if (columns)
+        *columns = m_private->columns;
+    return values;
+}
+
 int GridModel::rowCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);

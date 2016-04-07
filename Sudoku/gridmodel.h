@@ -15,6 +15,9 @@ public:
     explicit GridModel(QObject *parent = 0);
     ~GridModel();
 
+    int **gridValues() const; //Must mot free
+    int **createValuesCopy(int *rows, int *columns); //Must free after use
+
     int rowCount(const QModelIndex &parent = QModelIndex()) const ;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
