@@ -68,21 +68,15 @@ private slots:
     void showAbout();
     void loadPreset();
 
-    //Compute the value for the next cell
-    void nextStep();
-
-    //Repeat computation until all values are set
-    void goToEnd();
-
-    //Stop the goToEnd() process, so user can compute values one by one
-    void stop();
+    void solveSudoku();
 
     //Validate values from user input
     void onValueChanged(int row, int column, int oldValue, int newValue);
 
-    void onProceeded(int value, int row, int column, qint64 stepTime, qint64 totalTime);
-    void onFinished(qint64 totalTime);
-    void onTerminated(qint64 totalTime, const QString &message);
+    void onFinished();
+    void onTerminated(const QString &message);
+
+    void updateTime();
 
 private:
     MainWindowPrivate *m_private;

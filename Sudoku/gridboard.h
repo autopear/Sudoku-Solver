@@ -48,6 +48,8 @@ public:
     int columns() const;
     void setSize(int rows, int columns);
 
+    bool hasError() const;
+
     //Set 1 or 2 cells with highlighted foreground color
     void setHighlight(const QPoint &p1, const QPoint &p2);
     void setHighlight(int row1, int column1, int row2, int column2);

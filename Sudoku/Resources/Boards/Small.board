@@ -3,6 +3,7 @@ ROWS: 4
 COLUMNS: 4
 MINIMUM: 1
 MAXIMUM: 4
+MINVALUES: 0
 BLOCKS:
 [(0, 0), (0, 1), (1, 0), (1, 1)],
 [(0, 2), (0, 3), (1, 2), (1, 3)],

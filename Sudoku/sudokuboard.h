@@ -35,6 +35,8 @@ public:
     int minimum() const; //Minimum value
     int maximum() const; //Maximum value
 
+    int minimumValues() const; //Minimum number of values needed to solve the game
+
     //All inner blocks, this is optional
     QList<QPolygon> blocks() const;
 
@@ -58,6 +60,7 @@ signals:
     void minimumChanged(int oldMin);
     void maximumChanged(int oldMax);
     void rangeChanged(int oldMin, int oldMax);
+    void minimumValuesChanged(int oldMin);
     void blocksChanged(const QList<QPolygon> &oldBlocks);
     void colorsChanged(const QList<QColor> &colors);
 
@@ -70,6 +73,7 @@ public slots:
     void setMinimum(int min);
     void setMaximum(int max);
     void setRange(int min, int max);
+    void setMinimumValues(int min);
     void setBlocks(const QList<QPolygon> &blocks);
     void setColors(const QList<QColor> &colors);
 

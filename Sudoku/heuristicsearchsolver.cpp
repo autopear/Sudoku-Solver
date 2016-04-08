@@ -1,12 +1,15 @@
+#include "abstractsolver_p.h"
 #include "gridboard.h"
 #include "mainwindow.h"
+#include "sudokuboard_p.h"
 #include "sudokuboard.h"
 #include "heuristicsearchsolver.h"
 
 using namespace CIS5603;
 
-HeuristicSearchSolver::HeuristicSearchSolver(QObject *parent) :
-    AbstractSolver(parent)
+HeuristicSearchSolver::HeuristicSearchSolver(SudokuBoard *board, QObject *parent) :
+    AbstractSolver(board, parent),
+    m_private(new HeuristicSearchSolverPrivate())
 {
 }
 
@@ -19,31 +22,144 @@ QString HeuristicSearchSolver::algorithm() const
     return tr("Heuristic Search");
 }
 
-int HeuristicSearchSolver::computeNextValue(int *value, int *row, int *column)
+QList<QPair<QPoint, int> > HeuristicSearchSolver::computedValues() const
 {
-    int bestValue;
-    QMap<QPoint, QList<int> > bestValues;
-    QPoint cell = MainWindow::sharedInstance()->gridBoard()->getBestCell(&bestValue, &bestValues, MainWindow::sharedInstance()->multithreadingEnabled());
+    return m_private->values;
+}
 
-    if (cell != QPoint(-1, -1))
+bool HeuristicSearchSolver::compute()
+{
+    bool foundSolution = false;
+
+    computeSudoku(values(), &(m_private->values), &foundSolution);
+
+    return foundSolution;
+}
+
+void HeuristicSearchSolver::computeSudoku(int **gridValues, QList<QPair<QPoint, int> > *computedValues, bool *foundSolution)
+{
+    if (*foundSolution || stopped() || !MainWindow::sharedInstance())
+        return;
+
+    int v;
+    QMap<QPoint, QList<int> > vs;
+
+    QPoint cell = GridBoard::getBestCell(gridValues, board(), &v, &vs, MainWindow::sharedInstance()->multithreadingEnabled());
+
+    if (cell == QPoint(-1, -1))
     {
-        *value = bestValue;
-        *row = cell.x();
-        *column = cell.y();
-        return 1;
+        int count = qMax(board()->rows(), board()->rows()) + 1;
+        QList<int> availables;
+        foreach (QPoint key, vs.keys())
+        {
+            if (*foundSolution || stopped())
+                break;
+
+            QList<int> tmp = vs.value(key);
+            if (tmp.size() < count)
+            {
+                cell = key;
+                availables = tmp;
+            }
+        }
+
+        foreach (int value, availables)
+        {
+            if (*foundSolution || stopped())
+                break;
+
+            int **copyValues = (int **)malloc(sizeof(int *) * board()->rows());
+            for (int i=0; i<board()->rows() ; i++)
+            {
+                if (*foundSolution || stopped())
+                {
+                    delete copyValues;
+                    return;
+                }
+
+                int *r = (int *)malloc(sizeof(int) * board()->columns());
+                for (int j=0; j<board()->columns(); j++)
+                    r[j] = gridValues[i][j];
+                copyValues[i] = r;
+            }
+            copyValues[cell.x()][cell.y()] = value;
+
+            if (canCompute(copyValues, board()->rows(), board()->columns()))
+                computeSudoku(copyValues, computedValues, foundSolution);
+            else
+            {
+                *foundSolution = true;
+
+                for (int i=0; i<board()->rows(); i++)
+                {
+                    for (int j=0; j<board()->columns(); j++)
+                    {
+                        if (stopped())
+                        {
+                            delete copyValues;
+                            return;
+                        }
+
+                        int newValue = copyValues[i][j];
+                        if (values()[i][j] != newValue)
+                            computedValues->append(QPair<QPoint, int>(QPoint(i, j), newValue));
+                    }
+                }
+            }
+
+            delete copyValues;
+        }
     }
+    else
+    {
+        int **copyValues = (int **)malloc(sizeof(int *) * board()->rows());
+        for (int i=0; i<board()->rows() ; i++)
+        {
+            if (*foundSolution || stopped())
+            {
+                delete copyValues;
+                return;
+            }
 
-    if (bestValues.isEmpty())
-        return 0;
+            int *r = (int *)malloc(sizeof(int) * board()->columns());
+            for (int j=0; j<board()->columns(); j++)
+                r[j] = gridValues[i][j];
+            copyValues[i] = r;
+        }
+        copyValues[cell.x()][cell.y()] = v;
 
-    if (value)
-        *value = 0;
-    if (row)
-        *row = -1;
-    if (column)
-        *column = -1;
+        if (canCompute(copyValues, board()->rows(), board()->columns()))
+            computeSudoku(copyValues, computedValues, foundSolution);
+        else
+        {
+            for (int i=0; i<board()->rows(); i++)
+            {
+                for (int j=0; j<board()->columns(); j++)
+                {
+                    if (stopped())
+                    {
+                        delete copyValues;
+                        return;
+                    }
 
-    emit interrupted(tr("The game cannot be solved."));
+                    int newValue = copyValues[i][j];
+                    if (values()[i][j] != newValue)
+                        computedValues->append(QPair<QPoint, int>(QPoint(i, j), newValue));
+                }
+            }
 
-    return -1;
+            *foundSolution = true;
+        }
+        delete copyValues;
+    }
+}
+
+HeuristicSearchSolverPrivate::HeuristicSearchSolverPrivate()
+{
+    values = QList<QPair<QPoint, int> >();
+}
+
+HeuristicSearchSolverPrivate::~HeuristicSearchSolverPrivate()
+{
+    values.clear();
 }

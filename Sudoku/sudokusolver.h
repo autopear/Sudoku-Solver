@@ -1,41 +1,50 @@
 #ifndef SUDOKUSOLVER_H
 #define SUDOKUSOLVER_H
 
+#include <QList>
 #include <QObject>
+#include <QPair>
 
 namespace CIS5603
 {
 
+class SudokuBoard;
 class SudokuSolverPrivate;
 
 class SudokuSolver : public QObject
 {
     Q_OBJECT
 public:
-    explicit SudokuSolver(QObject *parent = 0);
+    enum State
+    {
+        Idle,
+        Running,
+        Finished,
+        Terminated
+    };
+
+    explicit SudokuSolver(SudokuBoard *board, QObject *parent = 0);
     ~SudokuSolver();
+
+    State state() const;
 
     QString algorithm() const;
 
-    bool isRunning() const;
+    QList<QPair<QPoint, int> > computedValues() const;
 
-    qint64 lastStepTime() const;
-    qint64 totalTime() const;
+    void setValues(int **values);
 
 signals:
-    void proceeded(int value, int row, int column, qint64 stepTime, qint64 totalTime);
-    void finished(qint64 totalTime);
-    void terminated(qint64 totalTime, const QString &message);
+    void finished();
+    void terminated(const QString &message);
 
 public slots:
     void reset();
     void setAlgorithm(const QString &algorithm);
-    void nextStep();
-    void goToEnd();
+    void compute();
     void stop();
 
 private slots:
-    void onComputed(int value, int row, int column);
     void onTerminated(const QString &message);
     void onFinished();
 

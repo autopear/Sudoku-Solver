@@ -3,12 +3,11 @@
 
 #include "sudokusolver.h"
 
-class QElapsedTimer;
-
 namespace CIS5603
 {
 
 class AbstractSolver;
+class SudokuBoard;
 
 class SudokuSolverPrivate
 {
@@ -17,12 +16,13 @@ protected:
     SudokuSolverPrivate();
     ~SudokuSolverPrivate();
 
+    SudokuBoard *board;
+
     AbstractSolver *solver;
 
-    QElapsedTimer *timer;
+    SudokuSolver::State state;
 
-    qint64 totalTime;
-    qint64 lastTime;
+    QList<QPair<QPoint, int> > values;
 };
 
 }

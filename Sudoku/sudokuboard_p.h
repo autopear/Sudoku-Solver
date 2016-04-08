@@ -84,7 +84,8 @@ protected:
     int rows;
     int columns;
     int min;
-    int max;    
+    int max;
+    int minValues;
     QList<QPolygon> blocks;
     QMap<QPoint, QList<QPolygon> > blockMap;
     QList<QColor> colors;

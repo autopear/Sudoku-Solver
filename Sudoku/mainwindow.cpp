@@ -5,6 +5,7 @@
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -15,7 +16,9 @@
 #include <QMimeData>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QTimer>
 #include <QUrl>
+#include <qmath.h>
 #include "aboutdialog.h"
 #include "gridboard.h"
 #include "sudokuboard.h"
@@ -95,7 +98,7 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(onAlgorithmSelected(int)));
 
     m_private->checkMultiThread = new QCheckBox(tr("&Multi-threading"), this);
-    m_private->checkMultiThread->setChecked(true);
+    m_private->checkMultiThread->setChecked(false);
 
     m_private->buttonPreset = new QPushButton(tr("&Preset"), this);
     m_private->buttonPreset->setToolTip(tr("Load a .sdk file with preset values into the board.\n\nYou can also drag a .sdk file to the main window."));
@@ -109,9 +112,16 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_private->buttonInitialize, SIGNAL(clicked(bool)),
             this, SLOT(initialize()));
 
-    int w = qMax(m_private->buttonInitialize->sizeHint().width(), m_private->buttonPreset->sizeHint().width());
+    m_private->buttonSolve = new QPushButton(tr("&Solve"), this);
+    m_private->buttonSolve->setAutoDefault(false);
+    m_private->buttonSolve->setDefault(true);
+    connect(m_private->buttonSolve, SIGNAL(clicked(bool)),
+            this, SLOT(solveSudoku()));
+
+    int w = qMax(m_private->buttonInitialize->sizeHint().width(), qMax(m_private->buttonPreset->sizeHint().width(), m_private->buttonSolve->sizeHint().width()));
     m_private->buttonInitialize->setFixedWidth(w);
     m_private->buttonPreset->setFixedWidth(w);
+    m_private->buttonSolve->setFixedWidth(w);
 
     m_private->boxBoard->setMaximumWidth(w * 1.5);
     m_private->boxAlgorithm->setMaximumWidth(w * 1.5);
@@ -129,28 +139,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_private->boardWidget, SIGNAL(valueChanged(int,int,int,int)),
             this, SLOT(onValueChanged(int,int,int,int)));
 
-    m_private->labelTitleTotalTime = new QLabel(tr("Total Time:"), this);
+    m_private->labelTitleTime = new QLabel(tr("Total Time:"), this);
 
-    m_private->labelTotalTime = new QLabel("0.000", this);
-
-    m_private->labelTitleStepTime = new QLabel(tr("Current Step:"), this);
-
-    m_private->labelStepTime = new QLabel("0.000", this);
-
-    m_private->buttonNext = new QPushButton(tr("&Next"), this);
-    m_private->buttonNext->setAutoDefault(false);
-    m_private->buttonNext->setDefault(true);
-    connect(m_private->buttonNext, SIGNAL(clicked(bool)),
-            this, SLOT(nextStep()));
-
-    m_private->buttonEnd = new QPushButton(tr("&Go to End"), this);
-    m_private->buttonEnd->setAutoDefault(false);
-    connect(m_private->buttonEnd, SIGNAL(clicked(bool)),
-            this, SLOT(goToEnd()));
-
-    w = qMax(m_private->buttonNext->sizeHint().width(), m_private->buttonEnd->sizeHint().width());
-    m_private->buttonNext->setFixedWidth(w);
-    m_private->buttonEnd->setFixedWidth(w);
+    m_private->labelTime = new QLabel("0.000", this);
 
     m_private->mainWidget = new QWidget(this);
 
@@ -165,30 +156,19 @@ MainWindow::MainWindow(QWidget *parent) :
     rightLayout->addWidget(m_private->checkMultiThread);
     rightLayout->addSpacing(20);
     rightLayout->addWidget(m_private->buttonPreset, 0, Qt::AlignCenter);
-    rightLayout->addSpacing(10);
     rightLayout->addWidget(m_private->buttonInitialize, 0, Qt::AlignCenter);
+    rightLayout->addSpacing(20);
+    rightLayout->addWidget(m_private->buttonSolve, 0, Qt::AlignCenter);
     rightLayout->addSpacing(50);
     rightLayout->addStretch();
     rightLayout->addWidget(m_private->buttonAbout, 0, Qt::AlignCenter);
 
-    QGridLayout *labels = new QGridLayout();
+    QHBoxLayout *labels = new QHBoxLayout();
     labels->setContentsMargins(0, 0, 0, 0);
-    labels->addWidget(m_private->labelTitleStepTime, 0, 1);
-    labels->addWidget(m_private->labelStepTime, 0, 2);
-    labels->addWidget(m_private->labelTitleTotalTime, 1, 1);
-    labels->addWidget(m_private->labelTotalTime, 1, 2);
-    labels->setColumnStretch(0, 1);
-    labels->setColumnStretch(1, 0);
-    labels->setColumnStretch(2, 0);
-    labels->setColumnStretch(3, 1);
-
-    QHBoxLayout *buttons = new QHBoxLayout();
-    buttons->setContentsMargins(0, 0, 0, 0);
-    buttons->addStretch();
-    buttons->addWidget(m_private->buttonNext);
-    buttons->addStretch();
-    buttons->addWidget(m_private->buttonEnd);
-    buttons->addStretch();
+    labels->addStretch();
+    labels->addWidget(m_private->labelTitleTime);
+    labels->addWidget(m_private->labelTime);
+    labels->addStretch();
 
     QGridLayout *boardLayout = new QGridLayout();
     boardLayout->setContentsMargins(0, 0, 0, 0);
@@ -201,8 +181,6 @@ MainWindow::MainWindow(QWidget *parent) :
     leftLayout->setContentsMargins(0, 0, 0, 0);
     leftLayout->addLayout(boardLayout);
     leftLayout->addLayout(labels);
-    leftLayout->addSpacing(10);
-    leftLayout->addLayout(buttons);
 
     QHBoxLayout *layout = new QHBoxLayout(m_private->mainWidget);
     layout->addLayout(leftLayout, 1);
@@ -217,6 +195,13 @@ MainWindow::MainWindow(QWidget *parent) :
     m_private->buttonInitialize->setEnabled(false);
     m_private->buttonPreset->setEnabled(false);
     m_private->updateWidgets();
+
+    m_private->timer = new QTimer(this);
+    m_private->timer->setInterval(51);
+    connect(m_private->timer, SIGNAL(timeout()),
+            this, SLOT(updateTime()));
+
+    m_private->elapsedTimer = new QElapsedTimer();
 }
 
 MainWindow::~MainWindow()
@@ -286,13 +271,11 @@ void MainWindow::onBoardSelected(int index)
         if (m_private->solver)
             delete m_private->solver;
 
-        m_private->solver = new SudokuSolver(this);
-        connect(m_private->solver, SIGNAL(proceeded(int,int,int,qint64,qint64)),
-                this, SLOT(onProceeded(int,int,int,qint64,qint64)));
-        connect(m_private->solver, SIGNAL(terminated(qint64,QString)),
-                this, SLOT(onTerminated(qint64,QString)));
-        connect(m_private->solver, SIGNAL(finished(qint64)),
-                this, SLOT(onFinished(qint64)));
+        m_private->solver = new SudokuSolver(m_private->currentBoard, this);
+        connect(m_private->solver, SIGNAL(terminated(QString)),
+                this, SLOT(onTerminated(QString)));
+        connect(m_private->solver, SIGNAL(finished()),
+                this, SLOT(onFinished()));
 
         onAlgorithmSelected(m_private->boxAlgorithm->currentIndex());
 
@@ -340,22 +323,105 @@ void MainWindow::showAbout()
     dlg->exec();
 }
 
-void MainWindow::nextStep()
+void MainWindow::solveSudoku()
 {
-    if (m_private->buttonNext->isEnabled() && m_private->solver)
-        m_private->solver->nextStep();
-}
+    if (m_private->buttonSolve->isEnabled() && m_private->solver)
+    {
+        if (m_private->solver->state() == SudokuSolver::Running)
+        {
+            m_private->solver->stop();
 
-void MainWindow::goToEnd()
-{
-    if (m_private->buttonNext->isEnabled() && m_private->solver)
-        m_private->solver->goToEnd();
-}
+            updateTime();
+            m_private->elapsedTimer->invalidate();
+            m_private->timer->stop();
 
-void MainWindow::stop()
-{
-    if (m_private->buttonNext->isEnabled() && m_private->solver && m_private->solver->isRunning())
-        m_private->solver->stop();
+            m_private->buttonSolve->setText(tr("&Solve"));
+
+            m_private->blockWidgets(false);
+        }
+        else
+        {
+            m_private->blockWidgets(true);
+
+            m_private->buttonSolve->setText(tr("&Stop"));
+            m_private->labelTime->setText("0.000");
+
+            int emptyCells = 0;
+            int maxCells = m_private->currentBoard->rows() * m_private->currentBoard->columns();
+            for (int i=0; i<m_private->currentBoard->rows(); i++)
+            {
+                for (int j=0; j<m_private->currentBoard->columns(); j++)
+                {
+                    if (m_private->boardWidget->value(i, j) == 0)
+                        emptyCells++;
+                }
+            }
+
+            if (emptyCells == 0)
+            {
+                QMessageBox::information(this,
+                                         windowTitle(),
+                                         tr("The game is already solved."));
+
+                m_private->buttonSolve->setText(tr("&Solve"));
+
+                m_private->blockWidgets(false);
+                return;
+            }
+
+//            if (emptyCells == maxCells && m_private->currentBoard->rows() == m_private->currentBoard->columns())
+//            {
+//                qreal root = qSqrt(m_private->currentBoard->rows());
+//                int n = qRound(root);
+//                if (root == (qreal)n)
+//                {
+//                    //https://en.wikipedia.org/wiki/Sudoku_solving_algorithms#Blank_Sudoku_grids
+//                    for (int i=0; i<m_private->currentBoard->rows(); i++)
+//                        for (int j=0; j<m_private->currentBoard->rows(); j++)
+//                            m_private->boardWidget->setValue(i, j, (i*n + i/n + j) % (n*n) + 1);
+
+//                    m_private->buttonSolve->setText(tr("&Solve"));
+
+//                    m_private->blockWidgets(false);
+
+//                    return;
+//                }
+//            }
+
+            if (maxCells - emptyCells < m_private->currentBoard->minimumValues())
+            {
+                QMessageBox::warning(this,
+                                     tr("Warning"),
+                                     tr("At least %1 values are needed as preset.").arg(QString::number(m_private->currentBoard->minimumValues(), 10)));
+
+                m_private->buttonSolve->setText(tr("&Solve"));
+
+                m_private->blockWidgets(false);
+
+                return;
+            }
+
+            if (m_private->boardWidget->hasError())
+            {
+                QMessageBox::warning(this,
+                                     tr("Warning"),
+                                     tr("There is an error in the board, please fix the error first."));
+
+                m_private->buttonSolve->setText(tr("&Solve"));
+
+                m_private->blockWidgets(false);
+
+                return;
+            }
+
+            m_private->solver->setValues(m_private->boardWidget->gridValues());
+
+            m_private->elapsedTimer->start();
+            m_private->timer->start();
+
+            m_private->solver->compute();
+        }
+    }
 }
 
 void MainWindow::onValueChanged(int row, int column, int oldValue, int newValue)
@@ -393,33 +459,38 @@ void MainWindow::onValueChanged(int row, int column, int oldValue, int newValue)
     m_private->boardWidget->setHighlight(p1, p2);
 }
 
-void MainWindow::onProceeded(int value, int row, int column, qint64 stepTime, qint64 totalTime)
+void MainWindow::onFinished()
 {
-    Q_UNUSED(value);
-    Q_UNUSED(row);
-    Q_UNUSED(column);
+    updateTime();
+    m_private->elapsedTimer->invalidate();
+    m_private->timer->stop();
 
-    m_private->boardWidget->setHighlight(-1, -1, -1, -1);
+    QList<QPair<QPoint, int> > vs = m_private->solver->computedValues();
+    for (int i=0; i<vs.size(); i++)
+    {
+        QPair<QPoint, int> p = vs.at(i);
+        m_private->boardWidget->setValue(p.first, p.second);
+    }
 
-    m_private->boardWidget->setValue(row, column, value);
+    m_private->buttonSolve->setText(tr("&Solve"));
 
-    m_private->labelStepTime->setText(MainWindowPrivate::msToString(stepTime));
-    m_private->labelTotalTime->setText(MainWindowPrivate::msToString(totalTime));
+    m_private->blockWidgets(false);
 }
 
-void MainWindow::onFinished(qint64 totalTime)
+void MainWindow::onTerminated(const QString &message)
 {
-    m_private->labelTotalTime->setText(MainWindowPrivate::msToString(totalTime));
-}
-
-void MainWindow::onTerminated(qint64 totalTime, const QString &message)
-{
-    m_private->labelTotalTime->setText(MainWindowPrivate::msToString(totalTime));
+    updateTime();
+    m_private->elapsedTimer->invalidate();
+    m_private->timer->stop();
 
     if (!message.isEmpty())
         QMessageBox::information(this,
                                  windowTitle(),
                                  message);
+
+    m_private->buttonSolve->setText(tr("&Solve"));
+
+    m_private->blockWidgets(false);
 }
 
 void MainWindow::loadPreset()
@@ -447,13 +518,17 @@ void MainWindow::loadPreset()
     presetFromFile(sdk, true);
 }
 
+void MainWindow::updateTime()
+{
+    m_private->labelTime->setText(MainWindowPrivate::msToString(m_private->elapsedTimer->elapsed()));
+}
+
 void MainWindow::initialize()
 {
     if (m_private->currentBoard)
         m_private->boardWidget->clearContents();
 
-    m_private->labelStepTime->setText("0.000");
-    m_private->labelTotalTime->setText("0.000");
+    m_private->labelTime->setText("0.000");
 }
 
 bool MainWindow::presetFromFile(const QString &file, bool showError)
@@ -578,8 +653,7 @@ bool MainWindow::presetFromFile(const QString &file, bool showError)
         if (m_private->solver)
             m_private->solver->reset();
 
-        m_private->labelStepTime->setText("0.000");
-        m_private->labelTotalTime->setText("0.000");
+        m_private->labelTime->setText("0.000");
 
         return true;
     }
@@ -860,12 +934,9 @@ MainWindowPrivate::MainWindowPrivate()
     blankTopLeft = 0;
     blankBottomRight = 0;
     boardWidget = 0;
-    labelTitleTotalTime = 0;
-    labelTotalTime = 0;
-    labelTitleStepTime = 0;
-    labelStepTime = 0;
-    buttonNext = 0;
-    buttonEnd = 0;
+    labelTitleTime = 0;
+    labelTime = 0;
+    buttonSolve = 0;
 
     currentBoard = 0;
 
@@ -878,8 +949,17 @@ MainWindowPrivate::~MainWindowPrivate()
 {
     if (!boards.isEmpty())
     {
+        if (timer->isActive())
+            timer->stop();
+        if (elapsedTimer->isValid())
+            elapsedTimer->invalidate();
+
         if (solver)
-            delete solver;
+        {
+            solver->blockSignals(true);
+            solver->stop();
+            solver->deleteLater();
+        }
 
         foreach (SudokuBoard *board, boards)
             delete board;
@@ -898,13 +978,13 @@ MainWindowPrivate::~MainWindowPrivate()
         delete blankTopLeft;
         delete blankBottomRight;
         delete boardWidget;
-        delete labelTitleTotalTime;
-        delete labelTotalTime;
-        delete labelTitleStepTime;
-        delete labelStepTime;
-        delete buttonNext;
-        delete buttonEnd;
+        delete labelTitleTime;
+        delete labelTime;
+        delete buttonSolve;
         delete mainWidget;
+
+        delete timer;
+        delete elapsedTimer;
     }
 }
 
@@ -963,13 +1043,24 @@ void MainWindowPrivate::updateWidgets()
 {
     bool enabled = (solver && boxAlgorithm->currentIndex() > 0);
 
-    labelTitleTotalTime->setEnabled(enabled);
-    labelTotalTime->setEnabled(enabled);
-    labelTitleStepTime->setEnabled(enabled);
-    labelStepTime->setEnabled(enabled);
-    buttonNext->setEnabled(enabled);
-    buttonEnd->setEnabled(enabled);
+    labelTitleTime->setEnabled(enabled);
+    labelTime->setEnabled(enabled);
+    buttonSolve->setEnabled(enabled);
 }
+
+void MainWindowPrivate::blockWidgets(bool block)
+{
+    boxBoard->setEnabled(!block);
+    boxAlgorithm->setEnabled(!block);
+    checkMultiThread->setEnabled(!block);
+    buttonPreset->setEnabled(!block);
+    buttonInitialize->setEnabled(!block);
+    if (block)
+        boardWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    else
+        boardWidget->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+}
+
 
 QString MainWindowPrivate::msToString(qint64 ms)
 {
@@ -990,7 +1081,7 @@ QString MainWindowPrivate::msToString(qint64 ms)
             str = QString("0%1").arg(str);
         return QString("%1.%2").arg(QString::number(s, 10)).arg(str);
     }
-    else if (ms < 360000)
+    else if (ms < 3600000)
     {
         qint64 m = ms % 1000;
         qint64 tmp = (ms - m) / 1000;
@@ -1001,7 +1092,7 @@ QString MainWindowPrivate::msToString(qint64 ms)
         while (strMS.size() < 3)
             strMS = strMS.prepend('0');
 
-        QString strSEC = QString::number(m, 10);
+        QString strSEC = QString::number(sec, 10);
         if (strSEC.size() == 1)
             strSEC = strSEC.prepend('0');
 
@@ -1020,7 +1111,7 @@ QString MainWindowPrivate::msToString(qint64 ms)
         while (strMS.size() < 3)
             strMS = strMS.prepend('0');
 
-        QString strSEC = QString::number(m, 10);
+        QString strSEC = QString::number(sec, 10);
         if (strSEC.size() == 1)
             strSEC = strSEC.prepend('0');
 

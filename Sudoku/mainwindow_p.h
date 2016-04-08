@@ -9,6 +9,8 @@ class QComboBox;
 class QLabel;
 class QPushButton;
 class QWidget;
+class QElapsedTimer;
+class QTimer;
 
 namespace CIS5603
 {
@@ -27,6 +29,7 @@ protected:
     int loadBoards(); //Return the number of loaded boards, or -1 if any error happens
 
     void updateWidgets();
+    void blockWidgets(bool block);
 
     static QString msToString(qint64 ms);
 
@@ -58,18 +61,17 @@ protected:
     bool shown;
     int boardLeft, boardTop, boardBottom, boardRight;
 
-    QLabel *labelTitleTotalTime;
-    QLabel *labelTotalTime;
+    QLabel *labelTitleTime;
+    QLabel *labelTime;
 
-    QLabel *labelTitleStepTime;
-    QLabel *labelStepTime;
-
-    QPushButton *buttonNext;
-    QPushButton *buttonEnd;
+    QPushButton *buttonSolve;
 
     SudokuSolver *solver;
 
     QString lastPreset;
+
+    QTimer *timer;
+    QElapsedTimer *elapsedTimer;
 };
 
 }

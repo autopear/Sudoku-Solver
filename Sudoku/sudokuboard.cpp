@@ -33,6 +33,7 @@ SudokuBoard::SudokuBoard(SudokuBoard *other, QObject *parent) :
         m_private->columns = other->columns();
         m_private->min = other->minimum();
         m_private->max = other->maximum();
+        m_private->minValues = other->minimumValues();
         m_private->blocks = other->blocks();
         m_private->colors = other->colors();
         m_private->updateBlockMap();
@@ -54,6 +55,9 @@ bool SudokuBoard::isValid() const
         return false;
 
     if (m_private->min < 1 || m_private->max <= m_private->min)
+        return false;
+
+    if (m_private->minValues < 0 || m_private->minValues >= m_private->rows * m_private->columns)
         return false;
 
     //Check blocks;
@@ -101,6 +105,11 @@ int SudokuBoard::minimum() const
 int SudokuBoard::maximum() const
 {
     return m_private->max;
+}
+
+int SudokuBoard::minimumValues() const
+{
+    return m_private->minValues;
 }
 
 QList<QPolygon> SudokuBoard::blocks() const
@@ -170,6 +179,7 @@ bool SudokuBoard::saveToFile(const QString &file, QString *error)
     sdk->write(QString("COLUMNS: %1\n").arg(QString::number(m_private->columns, 10)).toUtf8());
     sdk->write(QString("MINIMUM: %1\n").arg(QString::number(m_private->min, 10)).toUtf8());
     sdk->write(QString("MAXIMUM: %1\n").arg(QString::number(m_private->max, 10)).toUtf8());
+    sdk->write(QString("MINVALUES: %1\n").arg(QString::number(m_private->minValues, 10)).toUtf8());
     if (!m_private->blocks.isEmpty())
     {
         sdk->write("BLOCKS:\n");
@@ -286,6 +296,17 @@ void SudokuBoard::setRange(int min, int max)
     }
 }
 
+void SudokuBoard::setMinimumValues(int min)
+{
+    if (min != m_private->minValues)
+    {
+        int old = m_private->minValues;
+        m_private->minValues = min;
+        emit minimumValuesChanged(old);
+        emit configurationChanged();
+    }
+}
+
 void SudokuBoard::setBlocks(const QList<QPolygon> &blocks)
 {
     QList<QPolygon> newBlocks;
@@ -334,6 +355,7 @@ SudokuBoardPrivate::SudokuBoardPrivate()
     columns = 0;
     min = 0;
     max = 0;
+    minValues = 0;
     blocks = QList<QPolygon>();
     blockMap = QMap<QPoint, QList<QPolygon> >();
     colors = QList<QColor>();
@@ -365,9 +387,10 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
     QString newName;
     int newRows, newColumns;
     int newMin, newMax;
+    int newMinValues;
     QList<QPolygon> newBlocks;
     QList<QColor> newColors;
-    bool foundName = false, foundRows = false, foundColumns = false, foundMin = false, foundMax = false, foundBlocks = false, foundColors = false;
+    bool foundName = false, foundRows = false, foundColumns = false, foundMin = false, foundMax = false, foundMinValues = false, foundBlocks = false, foundColors = false;
 
     bool isBlocks = false;
     foreach (QString line, lines)
@@ -574,6 +597,56 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
                 {
                     if (error)
                         *error = QObject::tr("Invalid MAXIMUM.");
+                    sdk->close();
+                    delete sdk;
+                    return -1;
+                }
+            }
+        }
+        else if (line.startsWith("MINVALUES:", Qt::CaseInsensitive))
+        {
+            if (isBlocks)
+            {
+                if (error)
+                    *error = QObject::tr("Syntax error found.");
+                sdk->close();
+                delete sdk;
+                return -1;
+            }
+            else if (foundMinValues)
+            {
+                if (error)
+                    *error = QObject::tr("Duplicate MINVALUES defined.");
+                sdk->close();
+                delete sdk;
+                return -1;
+            }
+            else
+            {
+                line = line.remove(0, 10).trimmed();
+                int comment = line.indexOf("#");
+                if (comment > -1)
+                    line = line.left(comment);
+                line = line.remove(" ").remove("\t");
+                bool isInt;
+                newMinValues = line.toInt(&isInt, 10);
+                if (isInt)
+                {
+                    if (newMinValues < 0)
+                    {
+                        if (error)
+                            *error = QObject::tr("Invalid MINVALUES.");
+                        sdk->close();
+                        delete sdk;
+                        return -1;
+                    }
+                    else
+                        foundMin = true;
+                }
+                else
+                {
+                    if (error)
+                        *error = QObject::tr("Invalid MINVALUES.");
                     sdk->close();
                     delete sdk;
                     return -1;
@@ -929,6 +1002,7 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
             newColumns == columns &&
             newMin == min &&
             newMax == max &&
+            newMinValues == minValues &&
             newBlocks == blocks &&
             newColors == colors)
     {
@@ -943,6 +1017,7 @@ int SudokuBoardPrivate::loadFromFile(const QString &file, QString *error)
         columns = newColumns;
         min = newMin;
         max = newMax;
+        minValues = newMinValues;
         blocks = newBlocks;
         colors = newColors;
 

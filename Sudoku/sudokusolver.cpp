@@ -1,4 +1,3 @@
-#include <QElapsedTimer>
 #include "heuristicsearchsolver.h"
 #include "gridboard.h"
 #include "mainwindow.h"
@@ -8,16 +7,21 @@
 
 using namespace CIS5603;
 
-SudokuSolver::SudokuSolver(QObject *parent) :
+SudokuSolver::SudokuSolver(SudokuBoard *board, QObject *parent) :
     QObject(parent),
     m_private(new SudokuSolverPrivate())
 {
-    m_private->timer = new QElapsedTimer();
+    m_private->board = board;
 }
 
 SudokuSolver::~SudokuSolver()
 {
     delete m_private;
+}
+
+SudokuSolver::State SudokuSolver::state() const
+{
+    return m_private->state;
 }
 
 QString SudokuSolver::algorithm() const
@@ -28,22 +32,15 @@ QString SudokuSolver::algorithm() const
         return QString();
 }
 
-bool SudokuSolver::isRunning() const
+QList<QPair<QPoint, int> > SudokuSolver::computedValues() const
 {
-    if (m_private->solver)
-        return m_private->solver->isRunning();
-    else
-        return false;
+    return m_private->values;
 }
 
-qint64 SudokuSolver::lastStepTime() const
+void SudokuSolver::setValues(int **values)
 {
-    return m_private->lastTime;
-}
-
-qint64 SudokuSolver::totalTime() const
-{
-    return m_private->totalTime;
+    if (m_private->solver && m_private->state != SudokuSolver::Running)
+        m_private->solver->setValues(values);
 }
 
 void SudokuSolver::reset()
@@ -54,16 +51,14 @@ void SudokuSolver::reset()
     if (m_private->solver->isRunning())
         return;
 
-    if (m_private->timer->isValid())
-        m_private->timer->invalidate();
+    m_private->values.clear();
 
-    m_private->lastTime = 0;
-    m_private->totalTime = 0;
+    m_private->state = SudokuSolver::Idle;
 }
 
 void SudokuSolver::setAlgorithm(const QString &algorithm)
 {
-    if (isRunning())
+    if (m_private->state == SudokuSolver::Running)
         return;
 
     if (m_private->solver)
@@ -80,15 +75,7 @@ void SudokuSolver::setAlgorithm(const QString &algorithm)
                 delete m_private->solver;
 
                 if (algorithm.compare(tr("Heuristic Search")) == 0)
-                {
-                    m_private->solver = new HeuristicSearchSolver(0);
-                    connect(m_private->solver, SIGNAL(computed(int,int,int)),
-                            this, SLOT(onComputed(int,int,int)));
-                    connect(m_private->solver, SIGNAL(interrupted(QString)),
-                            this, SLOT(onTerminated(QString)));
-                    connect(m_private->solver, SIGNAL(finished()),
-                            this, SLOT(onFinished()));
-                }
+                    m_private->solver = new HeuristicSearchSolver(m_private->board, 0);
                 else
                     m_private->solver = 0;
             }
@@ -99,22 +86,17 @@ void SudokuSolver::setAlgorithm(const QString &algorithm)
         if (!algorithm.isEmpty())
         {
             if (algorithm.compare(tr("Heuristic Search")) == 0)
-            {
-                m_private->solver = new HeuristicSearchSolver(0);
-                connect(m_private->solver, SIGNAL(computed(int,int,int)),
-                        this, SLOT(onComputed(int,int,int)));
-                connect(m_private->solver, SIGNAL(interrupted(QString)),
-                        this, SLOT(onTerminated(QString)));
-                connect(m_private->solver, SIGNAL(finished()),
-                        this, SLOT(onFinished()));
-            }
+                m_private->solver = new HeuristicSearchSolver(m_private->board, 0);
             else
                 m_private->solver = 0;
         }
     }
+
+    m_private->values.clear();
+    m_private->state = SudokuSolver::Idle;
 }
 
-void SudokuSolver::nextStep()
+void SudokuSolver::compute()
 {
     if (!m_private->solver)
         return;
@@ -122,21 +104,15 @@ void SudokuSolver::nextStep()
     if (m_private->solver->isRunning())
         return;
 
-    m_private->timer->restart();
-    m_private->solver->setStepByStep(true);
-    m_private->solver->start();
-}
+    m_private->state = SudokuSolver::Running;
 
-void SudokuSolver::goToEnd()
-{
-    if (!m_private->solver)
-        return;
+    m_private->values.clear();
 
-    if (m_private->solver->isRunning())
-        return;
+    connect(m_private->solver, SIGNAL(interrupted(QString)),
+            this, SLOT(onTerminated(QString)));
+    connect(m_private->solver, SIGNAL(finished()),
+            this, SLOT(onFinished()));
 
-    m_private->timer->restart();
-    m_private->solver->setStepByStep(false);
     m_private->solver->start();
 }
 
@@ -148,59 +124,60 @@ void SudokuSolver::stop()
     if (!m_private->solver->isRunning())
         return;
 
+    disconnect(m_private->solver, SIGNAL(interrupted(QString)),
+               this, SLOT(onTerminated(QString)));
+    disconnect(m_private->solver, SIGNAL(finished()),
+               this, SLOT(onFinished()));
+
     m_private->solver->stop();
-}
 
-void SudokuSolver::onComputed(int value, int row, int column)
-{
-    m_private->lastTime = m_private->timer->elapsed();
-    m_private->totalTime += m_private->lastTime;
-
-    emit proceeded(value, row, column, m_private->lastTime, m_private->totalTime);
-
-    m_private->timer->restart();
+    m_private->state = SudokuSolver::Finished;
 }
 
 void SudokuSolver::onTerminated(const QString &message)
 {
-    m_private->totalTime += m_private->timer->elapsed();
+    m_private->state = SudokuSolver::Terminated;
 
-    m_private->timer->invalidate();
+    disconnect(m_private->solver, SIGNAL(interrupted(QString)),
+               this, SLOT(onTerminated(QString)));
+    disconnect(m_private->solver, SIGNAL(finished()),
+               this, SLOT(onFinished()));
 
-    emit terminated(m_private->totalTime, message);
+    emit terminated(message);
 }
 
 void SudokuSolver::onFinished()
 {
-    if (m_private->timer->isValid())
+    if (m_private->state == SudokuSolver::Running)
     {
-        m_private->lastTime = m_private->timer->elapsed();
-        m_private->totalTime += m_private->lastTime;
+        disconnect(m_private->solver, SIGNAL(interrupted(QString)),
+                   this, SLOT(onTerminated(QString)));
+        disconnect(m_private->solver, SIGNAL(finished()),
+                   this, SLOT(onFinished()));
 
-        m_private->timer->invalidate();
+        m_private->values = m_private->solver->computedValues();
 
-        emit finished(m_private->totalTime);
+        m_private->state = SudokuSolver::Finished;
+
+        emit finished();
     }
 }
 
 SudokuSolverPrivate::SudokuSolverPrivate()
 {
     solver = 0;
-    timer = 0;
 
-    totalTime = 0;
-    lastTime = 0;
+    state = SudokuSolver::Idle;
+
+    values = QList<QPair<QPoint, int> >();
 }
 
 SudokuSolverPrivate::~SudokuSolverPrivate()
 {
     if (solver)
     {
+        solver->blockSignals(true);
         solver->stop();
         solver->deleteLater();
     }
-
-    if (timer->isValid())
-        timer->invalidate();
-    delete timer;
 }

@@ -1,8 +1,14 @@
 #ifndef ABSTRACTSOLVER_P_H
 #define ABSTRACTSOLVER_P_H
 
+#include <QList>
+#include <QPair>
+#include <QPoint>
+
 namespace CIS5603
 {
+
+class SudokuBoard;
 
 class AbstractSolverPrivate
 {
@@ -11,8 +17,19 @@ protected:
     AbstractSolverPrivate();
     ~AbstractSolverPrivate();
 
-    bool step;
+    SudokuBoard *board;
     bool stopped;
+    int **values;
+};
+
+class HeuristicSearchSolverPrivate
+{
+    friend class HeuristicSearchSolver;
+protected:
+    HeuristicSearchSolverPrivate();
+    ~HeuristicSearchSolverPrivate();
+
+    QList<QPair<QPoint, int> > values;
 };
 
 }

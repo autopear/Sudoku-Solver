@@ -9,26 +9,33 @@ namespace CIS5603
 {
 
 class AbstractSolverPrivate;
+class SudokuBoard;
 
 class AbstractSolver : public QThread
 {
     Q_OBJECT
 public:
-    explicit AbstractSolver(QObject *parent = 0);
+    explicit AbstractSolver(SudokuBoard *board, QObject *parent = 0);
     ~AbstractSolver();
 
     //Override this for the algorithm name
     virtual QString algorithm() const;
 
-    void setStepByStep(bool enabled);
+    SudokuBoard *board();
 
-    bool canCompute() const;
+    int **values();
+    void setValues(int **values);
+
+    virtual QList<QPair<QPoint, int> > computedValues() const;
 
     //Override this for the actual function to compute the next available value
-    virtual int computeNextValue(int *value, int *row, int *column);
+    virtual bool compute();
+
+    static bool canCompute(int **values, int rows, int columns);
+
+    bool stopped() const;
 
 signals:
-    void computed(int value, int row, int column);
     void interrupted(const QString &message);
 
 public slots:

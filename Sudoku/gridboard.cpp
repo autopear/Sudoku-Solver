@@ -320,6 +320,11 @@ void GridBoard::setAspectRatio(int w, int h)
     setAspectRatio(QSize(w, h));
 }
 
+bool GridBoard::hasError() const
+{
+    return m_private->model->hasHighlights();
+}
+
 void GridBoard::setHighlight(const QPoint &p1, const QPoint &p2)
 {
     setHighlight(p1.x(), p1.y(), p2.x(), p2.y());
