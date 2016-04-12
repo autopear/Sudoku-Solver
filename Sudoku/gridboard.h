@@ -79,9 +79,11 @@ protected:
     virtual void resizeEvent(QResizeEvent *event); //Maintain square aspect ratio
     virtual void leaveEvent(QEvent *event); //Clear selection
     virtual void showEvent(QShowEvent *event);
+    virtual void contextMenuEvent(QContextMenuEvent *event);
 
 private slots:
     void onValueChanged(const QModelIndex &index, int oldValue, int newValue);
+    void savePreset();
 
 private:
     GridBoardPrivate *m_private;

@@ -297,6 +297,7 @@ void MainWindow::onBoardSelected(int index)
         m_private->buttonInitialize->setEnabled(false);
         m_private->buttonPreset->setEnabled(false);
         m_private->boardWidget->clear();
+        m_private->boardWidget->setSize(0, 0);
     }
     initialize();
 

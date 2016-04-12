@@ -1,7 +1,15 @@
-#include <QLabel>
-#include <QHeaderView>
+#include <QAction>
+#include <QApplication>
+#include <QContextMenuEvent>
+#include <QDir>
+#include <QFile>
+#include <QFileDialog>
 #include <QFont>
 #include <QHBoxLayout>
+#include <QHeaderView>
+#include <QLabel>
+#include <QMenu>
+#include <QMessageBox>
 #include <QSemaphore>
 #include "gridmodel.h"
 #include "mainwindow.h"
@@ -47,6 +55,13 @@ GridBoard::GridBoard(QWidget *parent) :
     verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
     setStyleSheet("* { gridline-color: black; }");
+
+    m_private->actionSave = new QAction(tr("Save as Preset"), this);
+    connect(m_private->actionSave, SIGNAL(triggered(bool)),
+            this, SLOT(savePreset()));
+
+    m_private->menu = new QMenu(this);
+    m_private->menu->addAction(m_private->actionSave);
 }
 
 GridBoard::~GridBoard()
@@ -382,6 +397,56 @@ void GridBoard::onValueChanged(const QModelIndex &index, int oldValue, int newVa
         emit valueChanged(index.row(), index.column(), oldValue, newValue);
 }
 
+void GridBoard::savePreset()
+{
+    QString defaultFile = m_private->lastSave;
+    if (defaultFile.isEmpty())
+    {
+        QDir current(qApp->applicationDirPath());
+#ifdef Q_OS_MAC
+        current.cdUp();
+        current.cdUp();
+        current.cdUp();
+#endif
+        defaultFile = current.absolutePath();
+    }
+
+    QString save = QFileDialog::getSaveFileName(this,
+                                                tr("Save as Preset"),
+                                                defaultFile,
+                                                tr("Sudoku Preset (*.sdk)"));
+    if (!save.isEmpty())
+    {
+        m_private->lastSave = save;
+
+        QFile *file = new QFile(save);
+        if (file->open(QFile::WriteOnly))
+        {
+            for (int i=0; i<m_private->model->rowCount(); i++)
+            {
+                QStringList line;
+                for (int j=0; j<m_private->model->columnCount(); j++)
+                    line.append(QString::number(m_private->model->value(i, j), 10));
+
+                if (file->write(line.join(", ").append('\n').toUtf8()) < 1)
+                {
+                    QMessageBox::warning(this,
+                                         tr("Save as Preset"),
+                                         tr("Error writing file:\n%1").arg(QDir::toNativeSeparators(save)));
+                    break;
+                }
+            }
+
+            file->close();
+        }
+        else
+            QMessageBox::warning(this,
+                                 tr("Save as Preset"),
+                                 tr("Cannot open file for write operation:\n%1").arg(QDir::toNativeSeparators(save)));
+        delete file;
+    }
+}
+
 void GridBoard::resizeEvent(QResizeEvent *event)
 {
     QTableView::resizeEvent(event);
@@ -405,16 +470,31 @@ void GridBoard::showEvent(QShowEvent *event)
     }
 }
 
+void GridBoard::contextMenuEvent(QContextMenuEvent *event)
+{
+    if (m_private->model->rowCount() > 0 && m_private->model->columnCount() > 0)
+    {
+        m_private->menu->exec(event->globalPos());
+        event->accept();
+    }
+    else
+        event->ignore();
+}
+
 GridBoardPrivate::GridBoardPrivate()
 {
     label = 0;
     size = QSize(1, 1);
     model = 0;
     maxWidthNum = 1;
+    actionSave = 0;
+    menu = 0;
 }
 
 GridBoardPrivate::~GridBoardPrivate()
 {
+    delete actionSave;
+    delete menu;
     delete label;
     delete model;
 }

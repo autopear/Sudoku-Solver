@@ -6,7 +6,9 @@
 #include <QThread>
 #include "gridboard.h"
 
+class QAction;
 class QLabel;
+class QMenu;
 class QSemaphore;
 
 namespace CIS5603
@@ -25,6 +27,10 @@ protected:
     void adjustFont();
 
     GridBoard *board;
+
+    QAction *actionSave;
+    QMenu *menu;
+    QString lastSave;
 
     QLabel *label;
     QSize size;
