@@ -29,8 +29,10 @@ protected:
     GridBoard *board;
 
     QAction *actionSave;
+    QAction *actionCapture;
     QMenu *menu;
     QString lastSave;
+    QString lastCapture;
 
     QLabel *label;
     QSize size;

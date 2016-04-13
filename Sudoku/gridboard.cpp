@@ -1,9 +1,11 @@
 #include <QAction>
 #include <QApplication>
 #include <QContextMenuEvent>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFont>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -56,12 +58,18 @@ GridBoard::GridBoard(QWidget *parent) :
 
     setStyleSheet("* { gridline-color: black; }");
 
-    m_private->actionSave = new QAction(tr("Save as Preset"), this);
+    m_private->actionSave = new QAction(tr("Save as &Preset"), this);
     connect(m_private->actionSave, SIGNAL(triggered(bool)),
             this, SLOT(savePreset()));
 
+    m_private->actionCapture = new QAction(tr("&Save Screenshot"), this);
+    connect(m_private->actionCapture, SIGNAL(triggered(bool)),
+            this, SLOT(capture()));
+
     m_private->menu = new QMenu(this);
     m_private->menu->addAction(m_private->actionSave);
+    m_private->menu->addSeparator();
+    m_private->menu->addAction(m_private->actionCapture);
 }
 
 GridBoard::~GridBoard()
@@ -447,6 +455,42 @@ void GridBoard::savePreset()
     }
 }
 
+void GridBoard::capture()
+{
+    clearSelection();
+    setCurrentIndex(QModelIndex());
+
+    QPixmap image = QPixmap::grabWidget(this);
+    if (image.isNull())
+        return;
+
+    QString defaultDir = m_private->lastCapture;
+    if (defaultDir.isEmpty())
+    {
+        QDir current(qApp->applicationDirPath());
+#ifdef Q_OS_MAC
+        current.cdUp();
+        current.cdUp();
+        current.cdUp();
+#endif
+        defaultDir = current.absolutePath();
+    }
+
+    QDateTime dt = QDateTime::currentDateTime();
+    QString filename = QString("Screenshot %1 at %2.jpg").arg(dt.toString("yyyy-MM-dd")).arg(dt.toString("hh.mm.ss"));
+    QString defaultFile = QString("%1/%2").arg(defaultDir).arg(filename);
+
+    QString save = QFileDialog::getSaveFileName(this,
+                                                tr("Save Screenshot"),
+                                                defaultFile,
+                                                tr("Image (*.jpg)"));
+    if (!save.isEmpty())
+    {
+        m_private->lastCapture = QFileInfo(defaultFile).absolutePath();
+        image.save(save, "JPG", 100);
+    }
+}
+
 void GridBoard::resizeEvent(QResizeEvent *event)
 {
     QTableView::resizeEvent(event);
@@ -488,12 +532,14 @@ GridBoardPrivate::GridBoardPrivate()
     model = 0;
     maxWidthNum = 1;
     actionSave = 0;
+    actionCapture = 0;
     menu = 0;
 }
 
 GridBoardPrivate::~GridBoardPrivate()
 {
     delete actionSave;
+    delete actionCapture;
     delete menu;
     delete label;
     delete model;

@@ -84,6 +84,7 @@ protected:
 private slots:
     void onValueChanged(const QModelIndex &index, int oldValue, int newValue);
     void savePreset();
+    void capture();
 
 private:
     GridBoardPrivate *m_private;
