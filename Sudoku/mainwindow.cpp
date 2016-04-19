@@ -11,6 +11,7 @@
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QLabel>
+#include <QListView>
 #include <QMap>
 #include <QMessageBox>
 #include <QMimeData>
@@ -149,9 +150,9 @@ MainWindow::MainWindow(QWidget *parent) :
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->addWidget(m_private->labelBoard);
     rightLayout->addWidget(m_private->boxBoard);
-    rightLayout->addSpacing(10);
-    rightLayout->addWidget(m_private->labelAlgorithm);
-    rightLayout->addWidget(m_private->boxAlgorithm);
+//    rightLayout->addSpacing(10);
+//    rightLayout->addWidget(m_private->labelAlgorithm);
+//    rightLayout->addWidget(m_private->boxAlgorithm);
     rightLayout->addSpacing(10);
     rightLayout->addWidget(m_private->checkMultiThread);
     rightLayout->addSpacing(20);
@@ -202,6 +203,11 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(updateTime()));
 
     m_private->elapsedTimer = new QElapsedTimer();
+
+    m_private->boxAlgorithm->setCurrentIndex(1);
+    onAlgorithmSelected(1);
+    m_private->boxAlgorithm->setVisible(false);
+    m_private->labelAlgorithm->setVisible(false);
 }
 
 MainWindow::~MainWindow()
@@ -912,6 +918,17 @@ void MainWindow::showEvent(QShowEvent *event)
         m_private->boardBottom = out.bottom() - in.bottom();
 
         adjustBoard();
+
+        QListView *listView = qobject_cast<QListView *>(m_private->boxBoard->view());
+        QFontMetrics mt(listView->font());
+        int max = 0;
+        for (int i=0; i<m_private->boxBoard->count(); i++)
+        {
+            QString text = m_private->boxBoard->itemText(i);
+            int w = mt.width(text);
+            max = qMax(max, w);
+        }
+        listView->setMinimumWidth(max + 6);
     }
 }
 

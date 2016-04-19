@@ -17,6 +17,7 @@ protected:
     ~AboutDialogPrivate();
 
     QLabel *label;
+    QLabel *labelUrl;
     QPushButton *button;
 };
 

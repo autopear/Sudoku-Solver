@@ -10,7 +10,7 @@
 #define VER_COMPANYNAME_STR         "Temple University"
 #define VER_FILEDESCRIPTION_STR     "Sudoku Solver (CIS 5603 course project)"
 #define VER_INTERNALNAME_STR        "SudokuSolver"
-#define VER_LEGALCOPYRIGHT_STR      "Copyright © 2016"
+#define VER_LEGALCOPYRIGHT_STR      "Copyright © 2016 Merlin Mao"
 #define VER_LEGALTRADEMARKS1_STR    "All Rights Reserved"
 #define VER_LEGALTRADEMARKS2_STR    VER_LEGALTRADEMARKS1_STR
 #define VER_ORIGINALFILENAME_STR    "Sudoku.exe"
