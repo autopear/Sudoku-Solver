@@ -31,6 +31,7 @@ bool HeuristicSearchSolver::compute()
 {
     bool foundSolution = false;
 
+    m_private->values.clear();
     computeSudoku(values(), &(m_private->values), &foundSolution);
 
     return foundSolution;
